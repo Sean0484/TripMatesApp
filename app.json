@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tripmatess.app",
+      "appleTeamId": "2V9DS778KQ",
       "buildNumber": "1",
       "usesAppleSignIn": true,
       "entitlements": {
