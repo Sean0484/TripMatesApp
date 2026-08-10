@@ -256,7 +256,7 @@ export default function MarketplaceScreen() {
         <TouchableOpacity
           style={styles.ariaCard}
           activeOpacity={0.88}
-          onPress={() => router.push('/(tabs)/chat')}
+          onPress={() => router.push('/aria')}
         >
           <LinearGradient
             colors={['#4c1d95', '#7c3aed']}
@@ -276,7 +276,7 @@ export default function MarketplaceScreen() {
                 <TouchableOpacity
                   key={chip}
                   style={styles.ariaChip}
-                  onPress={() => router.push('/(tabs)/chat')}
+                  onPress={() => router.push('/aria')}
                 >
                   <Text style={styles.ariaChipText}>"{chip}"</Text>
                 </TouchableOpacity>
