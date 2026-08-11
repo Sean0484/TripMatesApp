@@ -56,15 +56,27 @@ export default function AriaScreen() {
     setTyping(true)
 
     try {
+      console.log('ARIA API: sending message')
       const res = await fetch('https://tripmatess.com/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify({ message: trimmed }),
       })
+      console.log('ARIA API: response status', res.status)
+      if (!res.ok) {
+        const text = await res.text()
+        console.log('ARIA API: error body', text)
+        throw new Error(`API error ${res.status}`)
+      }
       const json = await res.json()
-      const reply = json.reply ?? json.message ?? json.content ?? 'Sorry, I had trouble responding. Try again!'
+      console.log('ARIA API: response keys', Object.keys(json))
+      const reply = json.reply ?? json.message ?? json.content ?? json.text ?? json.response ?? 'Sorry, I had trouble responding. Try again!'
       setMessages(prev => [...prev, { id: newId(), role: 'aria', text: reply }])
-    } catch {
+    } catch (e: any) {
+      console.log('ARIA API: caught error', e)
       setMessages(prev => [...prev, { id: newId(), role: 'aria', text: "I'm having connection issues right now. Please try again in a moment! 🔌" }])
     } finally {
       setTyping(false)

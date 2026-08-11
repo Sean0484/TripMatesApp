@@ -117,9 +117,13 @@ export default function SafetyScreen() {
     setLoading(true)
 
     try {
+      console.log('Safety API: fetching for', dest.name)
       const res = await fetch('https://tripmatess.com/api/safety', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify({
           systemPrompt: `You are a travel safety expert. Respond with ONLY valid JSON and nothing else — no markdown fences, no explanation text. Use exactly this structure:
 {
@@ -138,8 +142,14 @@ export default function SafetyScreen() {
         }),
       })
 
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      console.log('Safety API: response status', res.status)
+      if (!res.ok) {
+        const text = await res.text()
+        console.log('Safety API: error body', text)
+        throw new Error(`API error ${res.status}: ${text}`)
+      }
       const json = await res.json()
+      console.log('Safety API: response json keys', Object.keys(json))
 
       const raw: string = json.response ?? json.message ?? json.text ?? json.content ?? json.result ?? ''
 
@@ -157,6 +167,7 @@ export default function SafetyScreen() {
 
       setSafety(parsed)
     } catch (e: any) {
+      console.log('Safety API: caught error', e)
       setError(e.message ?? 'Failed to load safety data. Please try again.')
     } finally {
       setLoading(false)
