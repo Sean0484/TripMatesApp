@@ -305,8 +305,8 @@ export default function SafetyScreen() {
               <View style={[styles.card, styles.scoreCard]}>
                 <Text style={styles.cardLabel}>SAFETY SCORE</Text>
                 <View style={styles.scoreDisplay}>
-                  <Text style={[styles.scoreNumber, { color: getScoreColor(safety.safetyScore) }]}>
-                    {safety.safetyScore}
+                  <Text style={[styles.scoreNumber, { color: getScoreColor(safety?.safetyScore ?? 5) }]}>
+                    {safety?.safetyScore ?? '—'}
                   </Text>
                   <Text style={styles.scoreDenom}>/10</Text>
                 </View>
@@ -315,8 +315,8 @@ export default function SafetyScreen() {
                     style={[
                       styles.scoreFill,
                       {
-                        width: `${(safety.safetyScore / 10) * 100}%` as any,
-                        backgroundColor: getScoreColor(safety.safetyScore),
+                        width: `${((safety?.safetyScore ?? 0) / 10) * 100}%` as any,
+                        backgroundColor: getScoreColor(safety?.safetyScore ?? 5),
                       },
                     ]}
                   />
@@ -327,10 +327,10 @@ export default function SafetyScreen() {
               <View style={[styles.card, styles.advisoryCard]}>
                 <Text style={styles.cardLabel}>ADVISORY</Text>
                 {(() => {
-                  const s = getAdvisoryStyle(safety.advisory)
+                  const s = getAdvisoryStyle(safety?.advisory ?? 'Exercise Caution')
                   return (
                     <View style={[styles.advisoryBadge, { backgroundColor: s.bg, borderColor: s.border }]}>
-                      <Text style={[styles.advisoryText, { color: s.text }]}>{safety.advisory}</Text>
+                      <Text style={[styles.advisoryText, { color: s.text }]}>{safety?.advisory ?? 'Exercise Caution'}</Text>
                     </View>
                   )
                 })()}
@@ -340,7 +340,7 @@ export default function SafetyScreen() {
             {/* Summary */}
             <View style={styles.card}>
               <Text style={styles.cardLabel}>SAFETY SUMMARY</Text>
-              <Text style={styles.summaryText}>{safety.summary}</Text>
+              <Text style={styles.summaryText}>{safety?.summary ?? ''}</Text>
             </View>
 
             {/* Emergency Numbers */}
@@ -350,28 +350,28 @@ export default function SafetyScreen() {
                 <View style={styles.emergencyItem}>
                   <Text style={styles.emergencyEmoji}>🚔</Text>
                   <Text style={styles.emergencyType}>Police</Text>
-                  <Text style={styles.emergencyNum}>{safety.emergencyNumbers.police}</Text>
+                  <Text style={styles.emergencyNum}>{safety?.emergencyNumbers?.police ?? 'N/A'}</Text>
                 </View>
                 <View style={styles.emergencyDivider} />
                 <View style={styles.emergencyItem}>
                   <Text style={styles.emergencyEmoji}>🚑</Text>
                   <Text style={styles.emergencyType}>Ambulance</Text>
-                  <Text style={styles.emergencyNum}>{safety.emergencyNumbers.ambulance}</Text>
+                  <Text style={styles.emergencyNum}>{safety?.emergencyNumbers?.ambulance ?? 'N/A'}</Text>
                 </View>
                 <View style={styles.emergencyDivider} />
                 <View style={styles.emergencyItem}>
                   <Text style={styles.emergencyEmoji}>🚒</Text>
                   <Text style={styles.emergencyType}>Fire</Text>
-                  <Text style={styles.emergencyNum}>{safety.emergencyNumbers.fire}</Text>
+                  <Text style={styles.emergencyNum}>{safety?.emergencyNumbers?.fire ?? 'N/A'}</Text>
                 </View>
               </View>
             </View>
 
             {/* Safety Tips */}
-            {safety.safetyTips?.length > 0 && (
+            {(safety?.safetyTips?.length ?? 0) > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardLabel}>SAFETY TIPS</Text>
-                {safety.safetyTips.map((tip, i) => (
+                {(safety?.safetyTips ?? []).map((tip, i) => (
                   <View key={i} style={styles.listItem}>
                     <View style={styles.listDot} />
                     <Text style={styles.listText}>{tip}</Text>
@@ -381,10 +381,10 @@ export default function SafetyScreen() {
             )}
 
             {/* Areas to Avoid */}
-            {safety.areasToAvoid?.length > 0 && (
+            {(safety?.areasToAvoid?.length ?? 0) > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardLabel}>AREAS TO AVOID</Text>
-                {safety.areasToAvoid.map((area, i) => (
+                {(safety?.areasToAvoid ?? []).map((area, i) => (
                   <View key={i} style={styles.listItem}>
                     <View style={[styles.listDot, { backgroundColor: '#ef4444' }]} />
                     <Text style={styles.listText}>{area}</Text>
