@@ -125,50 +125,62 @@ export default function SafetyScreen() {
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          systemPrompt: `You are a travel safety expert. Respond with ONLY valid JSON and nothing else — no markdown fences, no explanation text. Use exactly this structure:
-{
-  "safetyScore": <number 1-10>,
-  "summary": "<2-3 sentence safety overview>",
-  "advisory": "<one of: Safe, Exercise Caution, High Risk, Do Not Travel>",
-  "emergencyNumbers": {
-    "police": "<local emergency number>",
-    "ambulance": "<local emergency number>",
-    "fire": "<local emergency number>"
-  },
-  "safetyTips": ["<tip 1>", "<tip 2>", "<tip 3>", "<tip 4>", "<tip 5>"],
-  "areasToAvoid": ["<area or situation 1>", "<area or situation 2>", "<area or situation 3>"]
-}`,
-          userMessage: `Give me current travel safety information for ${dest.name}, ${dest.country}. Include accurate local emergency numbers, practical safety tips for travelers, and specific areas or situations to avoid.`,
+          systemPrompt: 'You are a travel safety expert. Always respond with valid JSON only.',
+          userMessage: `Safety information for ${dest.name}, ${dest.country}`,
         }),
       })
 
       console.log('Safety API: response status', res.status)
+
+      const text = await res.text()
+      console.log('Safety API: raw response:', text.slice(0, 300))
+
       if (!res.ok) {
-        const text = await res.text()
-        console.log('Safety API: error body', text)
-        throw new Error(`API error ${res.status}: ${text}`)
+        throw new Error(`API error ${res.status}`)
       }
-      const json = await res.json()
-      console.log('Safety API: response json keys', Object.keys(json))
 
-      const raw: string = json.response ?? json.message ?? json.text ?? json.content ?? json.result ?? ''
-
+      // API returns raw Anthropic response: { content: [{ type: 'text', text: '...' }] }
       let parsed: SafetyData
       try {
-        parsed = typeof raw === 'object' ? raw : JSON.parse(raw)
-      } catch {
-        const match = raw.match(/\{[\s\S]*\}/)
-        if (match) {
-          parsed = JSON.parse(match[0])
+        const json = JSON.parse(text)
+
+        // Extract the text content from Anthropic's response format
+        let rawText: string
+        if (Array.isArray(json.content) && json.content[0]?.text) {
+          rawText = json.content[0].text
+        } else if (typeof json.response === 'string') {
+          rawText = json.response
+        } else if (typeof json.message === 'string') {
+          rawText = json.message
+        } else if (typeof json.text === 'string') {
+          rawText = json.text
         } else {
-          throw new Error('Could not parse safety data from response')
+          rawText = text
         }
+
+        console.log('Safety API: extracted text:', rawText.slice(0, 200))
+
+        // Strip markdown fences if present
+        const clean = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+        // Parse the JSON within the text, extracting object if surrounded by extra text
+        try {
+          parsed = JSON.parse(clean)
+        } catch {
+          const match = clean.match(/\{[\s\S]*\}/)
+          if (!match) throw new Error('No JSON object found in response')
+          parsed = JSON.parse(match[0])
+        }
+      } catch (parseErr: any) {
+        console.log('Safety API: parse error', parseErr.message)
+        throw new Error('Could not parse safety data. Please try again.')
       }
 
       setSafety(parsed)
-    } catch (e: any) {
-      console.log('Safety API: caught error', e)
-      setError(e.message ?? 'Failed to load safety data. Please try again.')
+    } catch (error: any) {
+      console.log('Safety Hub error:', error.message)
+      setError(error.message ?? 'Could not load safety data. Please try again.')
+      setSafety(null)
     } finally {
       setLoading(false)
     }
