@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, ActivityIndicator, FlatList, Keyboard, Platform,
@@ -91,6 +91,8 @@ function getAdvisoryStyle(advisory: string) {
   return map[advisory] ?? map['Exercise Caution']
 }
 
+let activeFetch = false
+
 export default function SafetyScreen() {
   console.log('SAFETY SCREEN MOUNTED')
   const [query, setQuery] = useState('')
@@ -101,10 +103,6 @@ export default function SafetyScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const inputRef = useRef<TextInput>(null)
-  const isMounted = useRef(true)
-  useEffect(() => {
-    return () => { isMounted.current = false }
-  }, [])
 
   const filtered = query.length > 0
     ? DESTINATIONS.filter(d =>
@@ -113,13 +111,53 @@ export default function SafetyScreen() {
       ).slice(0, 6)
     : []
 
-  const handleSelect = useCallback(async (dest: Destination) => {
-    console.log('DESTINATION SELECTED:', dest.name, dest.country)
-    if (loading) {
-      console.log('FETCH BLOCKED: already loading')
+  const fetchSafetyData = async (destination: string) => {
+    if (activeFetch) {
+      console.log('FETCH ALREADY ACTIVE, SKIPPING')
       return
     }
-    isMounted.current = true
+
+    activeFetch = true
+    console.log('C: starting real fetch now')
+
+    try {
+      const response = await fetch('https://tripmatess.com/api/safety', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          systemPrompt: 'You are a travel safety expert. Respond only with valid JSON.',
+          userMessage: `Safety information for ${destination}`,
+        }),
+      })
+
+      console.log('D: response received, status:', response.status)
+      const text = await response.text()
+      console.log('E: response text:', text.substring(0, 200))
+
+      const match = text.match(/\{[\s\S]*\}/)
+      if (match) {
+        const data = JSON.parse(match[0])
+        console.log('F: parsed data keys:', Object.keys(data))
+        setSafety(data)
+        setError(null)
+      } else {
+        setError('Could not parse response')
+      }
+    } catch (err: any) {
+      console.log('G: fetch error:', err.message)
+      setError('Network error: ' + err.message)
+    } finally {
+      activeFetch = false
+      setLoading(false)
+      console.log('H: fetch complete')
+    }
+  }
+
+  const handleSelect = useCallback((dest: Destination) => {
+    console.log('DESTINATION SELECTED:', dest.name, dest.country)
     Keyboard.dismiss()
     setQuery(`${dest.flag} ${dest.name}, ${dest.country}`)
     setShowDropdown(false)
@@ -127,62 +165,8 @@ export default function SafetyScreen() {
     setSafety(null)
     setError(null)
     setLoading(true)
-
-    try {
-      console.log('=== SAFETY FETCH START ===')
-      console.log('A: dest object:', JSON.stringify(dest))
-
-      const body = JSON.stringify({
-        systemPrompt: 'You are a travel safety expert. Respond with valid JSON only.',
-        userMessage: `Give safety information for ${dest.name}, ${dest.country}`,
-      })
-      console.log('B: request body built:', body.substring(0, 100))
-
-      const response = await fetch('https://tripmatess.com/api/safety', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body,
-      })
-      console.log('C: fetch returned, status:', response.status)
-
-      const text = await response.text()
-      console.log('D: response body length:', text.length)
-      console.log('E: raw response:', text.substring(0, 300))
-
-      console.log('F: parsing outer JSON')
-      const json = JSON.parse(text)
-      console.log('G: outer JSON keys:', Object.keys(json).join(', '))
-
-      const content = json.content?.[0]?.text || json.reply || json.message || text
-      console.log('H: extracted content:', String(content).substring(0, 200))
-
-      console.log('I: running regex match for JSON object')
-      const jsonMatch = content.match(/\{[\s\S]*\}/)
-      console.log('J: jsonMatch found:', !!jsonMatch)
-
-      if (jsonMatch) {
-        console.log('K: parsing inner JSON, length:', jsonMatch[0].length)
-        const safetyData = JSON.parse(jsonMatch[0])
-        console.log('L: safetyData keys:', Object.keys(safetyData).join(', '))
-        console.log('M: calling setSafety')
-        if (isMounted.current) setSafety(safetyData)
-        console.log('N: setSafety called successfully')
-      } else {
-        throw new Error('Could not parse safety data')
-      }
-      console.log('=== SAFETY FETCH END ===')
-    } catch (err: any) {
-      console.log('SAFETY FETCH ERROR:', err.message)
-      console.log('SAFETY FETCH ERROR stack:', err.stack)
-      if (isMounted.current) setError('Could not load safety data. Please try again.')
-      if (isMounted.current) setSafety(null)
-    } finally {
-      if (isMounted.current) setLoading(false)
-    }
-  }, [loading])
+    fetchSafetyData(`${dest.name}, ${dest.country}`)
+  }, [])
 
   const handleClear = () => {
     setQuery('')
