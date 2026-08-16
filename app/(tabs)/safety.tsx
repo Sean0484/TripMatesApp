@@ -92,6 +92,7 @@ function getAdvisoryStyle(advisory: string) {
 }
 
 export default function SafetyScreen() {
+  console.log('SAFETY SCREEN MOUNTED')
   const [query, setQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const [selected, setSelected] = useState<Destination | null>(null)
@@ -182,6 +183,7 @@ export default function SafetyScreen() {
     inputRef.current?.focus()
   }
 
+  console.log('RENDERING SAFETY')
   return (
     <ErrorBoundary>
     <SafeAreaView style={styles.container} edges={['top']}>
