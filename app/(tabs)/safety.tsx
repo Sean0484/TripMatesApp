@@ -104,7 +104,7 @@ const fetchSafetyData = async (destination: string) => {
   _setLoading?.(true)
 
   try {
-    const response = await fetch('https://tripmatess.com/api/safety', {
+    const response = await fetch('https://www.tripmatess.com/api/safety', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -133,19 +133,54 @@ const fetchSafetyData = async (destination: string) => {
     const raw = JSON.parse(match[0])
     console.log('Safety raw keys:', Object.keys(raw).join(', '))
 
-    // Normalize field names to what the UI expects
-    const data: SafetyData = {
-      safetyScore: raw.safetyScore ?? raw.safety_score ?? raw.score ?? 5,
-      advisory: raw.advisory ?? raw.travelAdvisory ?? raw.travel_advisory ?? 'Exercise Caution',
-      summary: raw.summary ?? raw.safetyDescription ?? raw.description ?? '',
-      emergencyNumbers: {
-        police:    raw.emergencyNumbers?.police    ?? raw.emergency_numbers?.police    ?? raw.emergencyContacts?.police    ?? '999',
-        ambulance: raw.emergencyNumbers?.ambulance ?? raw.emergency_numbers?.ambulance ?? raw.emergencyContacts?.ambulance ?? '999',
-        fire:      raw.emergencyNumbers?.fire      ?? raw.emergency_numbers?.fire      ?? raw.emergencyContacts?.fire      ?? '999',
-      },
-      safetyTips:   Array.isArray(raw.safetyTips)   ? raw.safetyTips   : Array.isArray(raw.safety_tips)    ? raw.safety_tips    : [],
-      areasToAvoid: Array.isArray(raw.areasToAvoid) ? raw.areasToAvoid : Array.isArray(raw.areas_to_avoid) ? raw.areas_to_avoid : [],
+    // Convert string ratings like "Very High" → numeric score
+    const ratingToScore: Record<string, number> = {
+      'Very High': 9, 'High': 7, 'Moderate': 5, 'Medium': 5,
+      'Low': 3, 'Very Low': 2, 'Excellent': 9, 'Good': 7, 'Fair': 5, 'Poor': 3,
     }
+    const rawScore = raw.safetyScore ?? raw.safety_score ?? raw.score ?? raw.overall_safety_rating
+    const safetyScore: number = typeof rawScore === 'number'
+      ? rawScore
+      : ratingToScore[rawScore as string] ?? 5
+
+    // Summary: prefer explicit summary fields, fall back to key_safety_information
+    const summary: string =
+      raw.summary ?? raw.safetyDescription ?? raw.description ?? raw.overall_assessment ??
+      raw.key_safety_information?.general_safety ?? ''
+
+    // Advisory: map overall_assessment or rating string → advisory label
+    const advisoryRaw: string =
+      raw.advisory ?? raw.travelAdvisory ?? raw.travel_advisory ?? raw.overall_assessment ?? ''
+    const advisoryMap: Record<string, string> = {
+      'Very High': 'Safe', 'High': 'Safe', 'Excellent': 'Safe', 'Good': 'Safe',
+      'Moderate': 'Exercise Caution', 'Medium': 'Exercise Caution', 'Fair': 'Exercise Caution',
+      'Low': 'High Risk', 'Very Low': 'High Risk', 'Poor': 'High Risk',
+    }
+    const advisory: string = ['Safe', 'Exercise Caution', 'High Risk', 'Do Not Travel'].includes(advisoryRaw)
+      ? advisoryRaw
+      : advisoryMap[raw.overall_safety_rating as string] ?? 'Exercise Caution'
+
+    // Emergency numbers: check all known field shapes
+    const ec = raw.emergencyNumbers ?? raw.emergency_numbers ?? raw.emergencyContacts ?? raw.useful_contacts ?? {}
+    const emergencyNumbers = {
+      police:    ec.police    ?? ec.emergency ?? ec.police_non_emergency ?? '112',
+      ambulance: ec.ambulance ?? ec.emergency ?? '112',
+      fire:      ec.fire      ?? ec.emergency ?? '112',
+    }
+
+    // Safety tips: handle all known field names
+    const safetyTips: string[] =
+      Array.isArray(raw.safetyTips)            ? raw.safetyTips :
+      Array.isArray(raw.safety_tips)           ? raw.safety_tips :
+      Array.isArray(raw.practical_safety_tips) ? raw.practical_safety_tips : []
+
+    // Areas to avoid: handle all known field names
+    const areasToAvoid: string[] =
+      Array.isArray(raw.areasToAvoid)              ? raw.areasToAvoid :
+      Array.isArray(raw.areas_to_avoid)            ? raw.areas_to_avoid :
+      Array.isArray(raw.neighborhoods_to_avoid)    ? raw.neighborhoods_to_avoid : []
+
+    const data: SafetyData = { safetyScore, advisory, summary, emergencyNumbers, safetyTips, areasToAvoid }
 
     console.log('Safety normalized:', JSON.stringify(data).substring(0, 200))
     _setSafety?.(data)
