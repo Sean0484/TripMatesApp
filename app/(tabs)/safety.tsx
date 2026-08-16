@@ -116,16 +116,10 @@ export default function SafetyScreen() {
     setError(null)
     setLoading(true)
 
-    console.log('1. Starting fetch for:', dest.name, dest.country)
-
-    const controller = new AbortController()
-    const timeout = setTimeout(() => {
-      console.log('4. Timeout triggered after 15s')
-      controller.abort()
-    }, 15000)
-
     try {
-      const res = await fetch('https://tripmatess.com/api/safety', {
+      console.log('Fetching safety for:', `${dest.name}, ${dest.country}`)
+
+      const response = await fetch('https://tripmatess.com/api/safety', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,63 +129,27 @@ export default function SafetyScreen() {
           systemPrompt: 'You are a travel safety expert. Respond with valid JSON only.',
           userMessage: `Give safety information for ${dest.name}, ${dest.country}`,
         }),
-        signal: controller.signal,
       })
 
-      clearTimeout(timeout)
-      console.log('2. Response status:', res.status)
+      console.log('Response status:', response.status)
+      const text = await response.text()
+      console.log('Raw response:', text.substring(0, 300))
 
-      const text = await res.text()
-      console.log('3. Raw response:', text.substring(0, 200))
+      // Parse Anthropic response format
+      const json = JSON.parse(text)
+      const content = json.content?.[0]?.text || json.reply || json.message || text
 
-      if (!res.ok) {
-        throw new Error(`API error ${res.status}`)
+      // Extract JSON from content
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const safetyData = JSON.parse(jsonMatch[0])
+        setSafety(safetyData)
+      } else {
+        throw new Error('Could not parse safety data')
       }
-
-      // API returns raw Anthropic response: { content: [{ type: 'text', text: '...' }] }
-      let parsed: SafetyData
-      try {
-        const json = JSON.parse(text)
-
-        // Extract the text content from Anthropic's response format
-        let rawText: string
-        if (Array.isArray(json.content) && json.content[0]?.text) {
-          rawText = json.content[0].text
-        } else if (typeof json.response === 'string') {
-          rawText = json.response
-        } else if (typeof json.message === 'string') {
-          rawText = json.message
-        } else if (typeof json.text === 'string') {
-          rawText = json.text
-        } else {
-          rawText = text
-        }
-
-        console.log('3a. Extracted text:', rawText.slice(0, 200))
-
-        // Strip markdown fences if present
-        const clean = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-
-        // Parse the JSON within the text, extracting object if surrounded by extra text
-        try {
-          parsed = JSON.parse(clean)
-        } catch {
-          const match = clean.match(/\{[\s\S]*\}/)
-          if (!match) throw new Error('No JSON object found in response')
-          parsed = JSON.parse(match[0])
-        }
-
-        console.log('3b. Parsed safety keys:', Object.keys(parsed).join(', '))
-      } catch (parseErr: any) {
-        console.log('3c. Parse error:', parseErr.message)
-        throw new Error('Could not parse safety data. Please try again.')
-      }
-
-      setSafety(parsed)
-    } catch (error: any) {
-      clearTimeout(timeout)
-      console.log('4. Error:', error.message)
-      setError(error.name === 'AbortError' ? 'Request timed out. Please try again.' : (error.message ?? 'Could not load safety data. Please try again.'))
+    } catch (err: any) {
+      console.log('Safety error:', err.message)
+      setError('Could not load safety data. Please try again.')
       setSafety(null)
     } finally {
       setLoading(false)
