@@ -116,8 +116,15 @@ export default function SafetyScreen() {
     setError(null)
     setLoading(true)
 
+    console.log('1. Starting fetch for:', dest.name, dest.country)
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => {
+      console.log('4. Timeout triggered after 15s')
+      controller.abort()
+    }, 15000)
+
     try {
-      console.log('Safety API: fetching for', dest.name)
       const res = await fetch('https://tripmatess.com/api/safety', {
         method: 'POST',
         headers: {
@@ -125,15 +132,17 @@ export default function SafetyScreen() {
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          systemPrompt: 'You are a travel safety expert. Always respond with valid JSON only.',
-          userMessage: `Safety information for ${dest.name}, ${dest.country}`,
+          systemPrompt: 'You are a travel safety expert. Respond with valid JSON only.',
+          userMessage: `Give safety information for ${dest.name}, ${dest.country}`,
         }),
+        signal: controller.signal,
       })
 
-      console.log('Safety API: response status', res.status)
+      clearTimeout(timeout)
+      console.log('2. Response status:', res.status)
 
       const text = await res.text()
-      console.log('Safety API: raw response:', text.slice(0, 300))
+      console.log('3. Raw response:', text.substring(0, 200))
 
       if (!res.ok) {
         throw new Error(`API error ${res.status}`)
@@ -158,7 +167,7 @@ export default function SafetyScreen() {
           rawText = text
         }
 
-        console.log('Safety API: extracted text:', rawText.slice(0, 200))
+        console.log('3a. Extracted text:', rawText.slice(0, 200))
 
         // Strip markdown fences if present
         const clean = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
@@ -171,15 +180,18 @@ export default function SafetyScreen() {
           if (!match) throw new Error('No JSON object found in response')
           parsed = JSON.parse(match[0])
         }
+
+        console.log('3b. Parsed safety keys:', Object.keys(parsed).join(', '))
       } catch (parseErr: any) {
-        console.log('Safety API: parse error', parseErr.message)
+        console.log('3c. Parse error:', parseErr.message)
         throw new Error('Could not parse safety data. Please try again.')
       }
 
       setSafety(parsed)
     } catch (error: any) {
-      console.log('Safety Hub error:', error.message)
-      setError(error.message ?? 'Could not load safety data. Please try again.')
+      clearTimeout(timeout)
+      console.log('4. Error:', error.message)
+      setError(error.name === 'AbortError' ? 'Request timed out. Please try again.' : (error.message ?? 'Could not load safety data. Please try again.'))
       setSafety(null)
     } finally {
       setLoading(false)
