@@ -104,9 +104,21 @@ const fetchSafetyData = async (destination: string) => {
   }
 
   activeFetch = true
+  _setLoading?.(true)
   console.log('C: starting real fetch now')
 
   try {
+    // Test basic network first
+    console.log('C1: testing network...')
+    const testResponse = await fetch('https://httpbin.org/post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test: 'hello' }),
+    })
+    console.log('C2: test network status:', testResponse.status)
+
+    // Now try real API
+    console.log('C3: trying real API...')
     const response = await fetch('https://tripmatess.com/api/safety', {
       method: 'POST',
       headers: {
@@ -118,10 +130,9 @@ const fetchSafetyData = async (destination: string) => {
         userMessage: `Safety information for ${destination}`,
       }),
     })
-
-    console.log('D: response received, status:', response.status)
+    console.log('D: real API status:', response.status)
     const text = await response.text()
-    console.log('E: response text:', text.substring(0, 200))
+    console.log('E: response:', text.substring(0, 300))
 
     const match = text.match(/\{[\s\S]*\}/)
     if (match) {
@@ -133,12 +144,12 @@ const fetchSafetyData = async (destination: string) => {
       _setError?.('Could not parse response')
     }
   } catch (err: any) {
-    console.log('G: fetch error:', err.message)
-    _setError?.('Network error: ' + err.message)
+    console.log('ERROR:', err.message, err.name)
+    _setError?.('Error: ' + err.message)
   } finally {
     activeFetch = false
     _setLoading?.(false)
-    console.log('H: fetch complete')
+    console.log('H: done')
   }
 }
 
