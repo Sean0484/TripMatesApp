@@ -4,6 +4,7 @@ import {
   ScrollView, ActivityIndicator, FlatList, Keyboard, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 type Destination = {
   name: string
@@ -117,7 +118,14 @@ export default function SafetyScreen() {
     setLoading(true)
 
     try {
-      console.log('Fetching safety for:', `${dest.name}, ${dest.country}`)
+      console.log('=== SAFETY FETCH START ===')
+      console.log('A: dest object:', JSON.stringify(dest))
+
+      const body = JSON.stringify({
+        systemPrompt: 'You are a travel safety expert. Respond with valid JSON only.',
+        userMessage: `Give safety information for ${dest.name}, ${dest.country}`,
+      })
+      console.log('B: request body built:', body.substring(0, 100))
 
       const response = await fetch('https://tripmatess.com/api/safety', {
         method: 'POST',
@@ -125,30 +133,39 @@ export default function SafetyScreen() {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          systemPrompt: 'You are a travel safety expert. Respond with valid JSON only.',
-          userMessage: `Give safety information for ${dest.name}, ${dest.country}`,
-        }),
+        body,
       })
+      console.log('C: fetch returned, status:', response.status)
 
-      console.log('Response status:', response.status)
       const text = await response.text()
-      console.log('Raw response:', text.substring(0, 300))
+      console.log('D: response body length:', text.length)
+      console.log('E: raw response:', text.substring(0, 300))
 
-      // Parse Anthropic response format
+      console.log('F: parsing outer JSON')
       const json = JSON.parse(text)
-      const content = json.content?.[0]?.text || json.reply || json.message || text
+      console.log('G: outer JSON keys:', Object.keys(json).join(', '))
 
-      // Extract JSON from content
+      const content = json.content?.[0]?.text || json.reply || json.message || text
+      console.log('H: extracted content:', String(content).substring(0, 200))
+
+      console.log('I: running regex match for JSON object')
       const jsonMatch = content.match(/\{[\s\S]*\}/)
+      console.log('J: jsonMatch found:', !!jsonMatch)
+
       if (jsonMatch) {
+        console.log('K: parsing inner JSON, length:', jsonMatch[0].length)
         const safetyData = JSON.parse(jsonMatch[0])
+        console.log('L: safetyData keys:', Object.keys(safetyData).join(', '))
+        console.log('M: calling setSafety')
         setSafety(safetyData)
+        console.log('N: setSafety called successfully')
       } else {
         throw new Error('Could not parse safety data')
       }
+      console.log('=== SAFETY FETCH END ===')
     } catch (err: any) {
-      console.log('Safety error:', err.message)
+      console.log('SAFETY FETCH ERROR:', err.message)
+      console.log('SAFETY FETCH ERROR stack:', err.stack)
       setError('Could not load safety data. Please try again.')
       setSafety(null)
     } finally {
@@ -166,6 +183,7 @@ export default function SafetyScreen() {
   }
 
   return (
+    <ErrorBoundary>
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
@@ -396,6 +414,7 @@ export default function SafetyScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </ErrorBoundary>
   )
 }
 
