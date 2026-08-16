@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, ActivityIndicator, FlatList, Keyboard, Platform,
@@ -101,6 +101,10 @@ export default function SafetyScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const inputRef = useRef<TextInput>(null)
+  const isMounted = useRef(true)
+  useEffect(() => {
+    return () => { isMounted.current = false }
+  }, [])
 
   const filtered = query.length > 0
     ? DESTINATIONS.filter(d =>
@@ -158,7 +162,7 @@ export default function SafetyScreen() {
         const safetyData = JSON.parse(jsonMatch[0])
         console.log('L: safetyData keys:', Object.keys(safetyData).join(', '))
         console.log('M: calling setSafety')
-        setSafety(safetyData)
+        if (isMounted.current) setSafety(safetyData)
         console.log('N: setSafety called successfully')
       } else {
         throw new Error('Could not parse safety data')
@@ -167,10 +171,10 @@ export default function SafetyScreen() {
     } catch (err: any) {
       console.log('SAFETY FETCH ERROR:', err.message)
       console.log('SAFETY FETCH ERROR stack:', err.stack)
-      setError('Could not load safety data. Please try again.')
-      setSafety(null)
+      if (isMounted.current) setError('Could not load safety data. Please try again.')
+      if (isMounted.current) setSafety(null)
     } finally {
-      setLoading(false)
+      if (isMounted.current) setLoading(false)
     }
   }, [])
 
