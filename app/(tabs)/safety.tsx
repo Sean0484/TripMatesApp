@@ -117,14 +117,47 @@ const fetchSafetyData = async (destination: string) => {
     })
 
     const text = await response.text()
-    const match = text.match(/\{[\s\S]*\}/)
-    if (match) {
-      const data = JSON.parse(match[0])
-      _setSafety?.(data)
-      _setError?.(null)
-    } else {
-      _setError?.('Could not parse safety data. Please try again.')
+
+    // Unwrap Anthropic envelope: { content: [{ type: 'text', text: '...' }] }
+    let innerText = text
+    try {
+      const outer = JSON.parse(text)
+      if (Array.isArray(outer.content) && outer.content[0]?.text) {
+        innerText = outer.content[0].text
+      } else if (typeof outer.text === 'string') {
+        innerText = outer.text
+      }
+    } catch {
+      // text was not valid JSON wrapper — use raw text
     }
+
+    // Extract JSON object from inner text (strips markdown fences etc.)
+    const match = innerText.match(/\{[\s\S]*\}/)
+    if (!match) {
+      _setError?.('Could not parse safety data. Please try again.')
+      return
+    }
+
+    const raw = JSON.parse(match[0])
+    console.log('Safety raw keys:', Object.keys(raw).join(', '))
+
+    // Normalize field names to what the UI expects
+    const data: SafetyData = {
+      safetyScore: raw.safetyScore ?? raw.safety_score ?? raw.score ?? 5,
+      advisory: raw.advisory ?? raw.travelAdvisory ?? raw.travel_advisory ?? 'Exercise Caution',
+      summary: raw.summary ?? raw.safetyDescription ?? raw.description ?? '',
+      emergencyNumbers: {
+        police:    raw.emergencyNumbers?.police    ?? raw.emergency_numbers?.police    ?? raw.emergencyContacts?.police    ?? '999',
+        ambulance: raw.emergencyNumbers?.ambulance ?? raw.emergency_numbers?.ambulance ?? raw.emergencyContacts?.ambulance ?? '999',
+        fire:      raw.emergencyNumbers?.fire      ?? raw.emergency_numbers?.fire      ?? raw.emergencyContacts?.fire      ?? '999',
+      },
+      safetyTips:   Array.isArray(raw.safetyTips)   ? raw.safetyTips   : Array.isArray(raw.safety_tips)    ? raw.safety_tips    : [],
+      areasToAvoid: Array.isArray(raw.areasToAvoid) ? raw.areasToAvoid : Array.isArray(raw.areas_to_avoid) ? raw.areas_to_avoid : [],
+    }
+
+    console.log('Safety normalized:', JSON.stringify(data).substring(0, 200))
+    _setSafety?.(data)
+    _setError?.(null)
   } catch (err: any) {
     _setError?.('Could not load safety data. Please try again.')
   } finally {
