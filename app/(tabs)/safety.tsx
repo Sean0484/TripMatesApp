@@ -114,6 +114,7 @@ export default function SafetyScreen() {
     : []
 
   const handleSelect = useCallback(async (dest: Destination) => {
+    console.log('DESTINATION SELECTED:', dest.name, dest.country)
     Keyboard.dismiss()
     setQuery(`${dest.flag} ${dest.name}, ${dest.country}`)
     setShowDropdown(false)
@@ -237,7 +238,10 @@ export default function SafetyScreen() {
               <TouchableOpacity
                 key={`${dest.name}-${dest.country}`}
                 style={[styles.dropdownItem, i < filtered.length - 1 && styles.dropdownDivider]}
-                onPress={() => handleSelect(dest)}
+                onPress={() => {
+                  console.log('DROPDOWN ITEM PRESSED:', dest.name)
+                  handleSelect(dest)
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={styles.dropdownFlag}>{dest.flag}</Text>
@@ -408,7 +412,9 @@ export default function SafetyScreen() {
                   style={styles.chip}
                   onPress={() => {
                     const name = chip.split(' ').slice(1).join(' ')
+                    console.log('CHIP PRESSED:', chip, '-> name:', name)
                     const dest = DESTINATIONS.find(d => d.name === name)
+                    console.log('CHIP DEST FOUND:', dest ? dest.name : 'NOT FOUND')
                     if (dest) handleSelect(dest)
                   }}
                 >
