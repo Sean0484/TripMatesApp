@@ -115,6 +115,11 @@ export default function SafetyScreen() {
 
   const handleSelect = useCallback(async (dest: Destination) => {
     console.log('DESTINATION SELECTED:', dest.name, dest.country)
+    if (loading) {
+      console.log('FETCH BLOCKED: already loading')
+      return
+    }
+    isMounted.current = true
     Keyboard.dismiss()
     setQuery(`${dest.flag} ${dest.name}, ${dest.country}`)
     setShowDropdown(false)
@@ -177,7 +182,7 @@ export default function SafetyScreen() {
     } finally {
       if (isMounted.current) setLoading(false)
     }
-  }, [])
+  }, [loading])
 
   const handleClear = () => {
     setQuery('')
