@@ -111,8 +111,17 @@ const fetchSafetyData = async (destination: string) => {
         'Accept': 'application/json',
       },
       body: JSON.stringify({
-        systemPrompt: 'You are a travel safety expert. Respond only with valid JSON.',
-        userMessage: `Safety information for ${destination}`,
+        systemPrompt: 'You are a travel safety expert. Provide accurate, specific safety information for travelers. Always respond with valid JSON only, no markdown, no explanation.',
+        userMessage: `Provide travel safety information for "${destination}". Return ONLY this exact JSON structure:
+{
+  "safety_score": <integer 1-10>,
+  "safety_summary": "<one sentence overview>",
+  "safety_tips": ["<tip1>","<tip2>","<tip3>","<tip4>","<tip5>"],
+  "emergency_numbers": {"police":"<number>","ambulance":"<number>","fire":"<number>"},
+  "areas_to_avoid": ["<area1>","<area2>","<area3>"],
+  "best_time_to_visit": "<string>",
+  "travel_advisory": "<Safe|Exercise Caution|High Risk|Do Not Travel>"
+}`,
       }),
     })
 
@@ -133,54 +142,22 @@ const fetchSafetyData = async (destination: string) => {
     const raw = JSON.parse(match[0])
     console.log('Safety raw keys:', Object.keys(raw).join(', '))
 
-    // Convert string ratings like "Very High" → numeric score
-    const ratingToScore: Record<string, number> = {
-      'Very High': 9, 'High': 7, 'Moderate': 5, 'Medium': 5,
-      'Low': 3, 'Very Low': 2, 'Excellent': 9, 'Good': 7, 'Fair': 5, 'Poor': 3,
+    // Map exact web API field names → native SafetyData shape
+    const validAdvisories = ['Safe', 'Exercise Caution', 'High Risk', 'Do Not Travel']
+    const data: SafetyData = {
+      safetyScore: Math.min(10, Math.max(1, Number(raw.safety_score ?? raw.safetyScore ?? raw.score) || 5)),
+      summary:     raw.safety_summary ?? raw.summary ?? raw.safetyDescription ?? '',
+      advisory:    validAdvisories.includes(raw.travel_advisory ?? raw.advisory)
+                     ? (raw.travel_advisory ?? raw.advisory)
+                     : 'Exercise Caution',
+      emergencyNumbers: {
+        police:    raw.emergency_numbers?.police    ?? raw.emergencyNumbers?.police    ?? '—',
+        ambulance: raw.emergency_numbers?.ambulance ?? raw.emergencyNumbers?.ambulance ?? '—',
+        fire:      raw.emergency_numbers?.fire      ?? raw.emergencyNumbers?.fire      ?? '—',
+      },
+      safetyTips:   Array.isArray(raw.safety_tips)   ? raw.safety_tips   : Array.isArray(raw.safetyTips)   ? raw.safetyTips   : [],
+      areasToAvoid: Array.isArray(raw.areas_to_avoid) ? raw.areas_to_avoid : Array.isArray(raw.areasToAvoid) ? raw.areasToAvoid : [],
     }
-    const rawScore = raw.safetyScore ?? raw.safety_score ?? raw.score ?? raw.overall_safety_rating
-    const safetyScore: number = typeof rawScore === 'number'
-      ? rawScore
-      : ratingToScore[rawScore as string] ?? 5
-
-    // Summary: prefer explicit summary fields, fall back to key_safety_information
-    const summary: string =
-      raw.summary ?? raw.safetyDescription ?? raw.description ?? raw.overall_assessment ??
-      raw.key_safety_information?.general_safety ?? ''
-
-    // Advisory: map overall_assessment or rating string → advisory label
-    const advisoryRaw: string =
-      raw.advisory ?? raw.travelAdvisory ?? raw.travel_advisory ?? raw.overall_assessment ?? ''
-    const advisoryMap: Record<string, string> = {
-      'Very High': 'Safe', 'High': 'Safe', 'Excellent': 'Safe', 'Good': 'Safe',
-      'Moderate': 'Exercise Caution', 'Medium': 'Exercise Caution', 'Fair': 'Exercise Caution',
-      'Low': 'High Risk', 'Very Low': 'High Risk', 'Poor': 'High Risk',
-    }
-    const advisory: string = ['Safe', 'Exercise Caution', 'High Risk', 'Do Not Travel'].includes(advisoryRaw)
-      ? advisoryRaw
-      : advisoryMap[raw.overall_safety_rating as string] ?? 'Exercise Caution'
-
-    // Emergency numbers: check all known field shapes
-    const ec = raw.emergencyNumbers ?? raw.emergency_numbers ?? raw.emergencyContacts ?? raw.useful_contacts ?? {}
-    const emergencyNumbers = {
-      police:    ec.police    ?? ec.emergency ?? ec.police_non_emergency ?? '112',
-      ambulance: ec.ambulance ?? ec.emergency ?? '112',
-      fire:      ec.fire      ?? ec.emergency ?? '112',
-    }
-
-    // Safety tips: handle all known field names
-    const safetyTips: string[] =
-      Array.isArray(raw.safetyTips)            ? raw.safetyTips :
-      Array.isArray(raw.safety_tips)           ? raw.safety_tips :
-      Array.isArray(raw.practical_safety_tips) ? raw.practical_safety_tips : []
-
-    // Areas to avoid: handle all known field names
-    const areasToAvoid: string[] =
-      Array.isArray(raw.areasToAvoid)              ? raw.areasToAvoid :
-      Array.isArray(raw.areas_to_avoid)            ? raw.areas_to_avoid :
-      Array.isArray(raw.neighborhoods_to_avoid)    ? raw.neighborhoods_to_avoid : []
-
-    const data: SafetyData = { safetyScore, advisory, summary, emergencyNumbers, safetyTips, areasToAvoid }
 
     console.log('Safety normalized:', JSON.stringify(data).substring(0, 200))
     _setSafety?.(data)
