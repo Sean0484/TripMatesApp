@@ -118,25 +118,17 @@ const fetchSafetyData = async (destination: string) => {
 
     const text = await response.text()
 
-    // Unwrap Anthropic envelope: { content: [{ type: 'text', text: '...' }] }
-    let innerText = text
-    try {
-      const outer = JSON.parse(text)
-      if (Array.isArray(outer.content) && outer.content[0]?.text) {
-        innerText = outer.content[0].text
-      } else if (typeof outer.text === 'string') {
-        innerText = outer.text
-      }
-    } catch {
-      // text was not valid JSON wrapper — use raw text
-    }
+    // api/safety.js returns the raw Anthropic response:
+    // { content: [{ type: 'text', text: '<JSON string>' }], ... }
+    const outer = JSON.parse(text)
+    const innerText: string = outer?.content?.[0]?.text ?? outer?.text ?? text
 
-    // Extract JSON object from inner text (strips markdown fences etc.)
-    const match = innerText.match(/\{[\s\S]*\}/)
-    if (!match) {
-      _setError?.('Could not parse safety data. Please try again.')
-      return
-    }
+    // Strip markdown fences if Claude wrapped the JSON
+    const cleaned = innerText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+    // Extract the JSON object from the inner text
+    const match = cleaned.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('No JSON object in response')
 
     const raw = JSON.parse(match[0])
     console.log('Safety raw keys:', Object.keys(raw).join(', '))
