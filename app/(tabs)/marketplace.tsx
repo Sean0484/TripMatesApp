@@ -1,11 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
   Linking, Platform, Modal, FlatList, Keyboard,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
 
@@ -103,7 +102,6 @@ const PARTNERS = [
   { name: 'Airalo',       icon: '📱', color: '#00C6BE', url: 'https://www.airalo.com',            desc: 'eSIM' },
 ]
 
-const WISHLIST_KEY = 'marketplace_wishlist'
 const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -133,18 +131,11 @@ export default function MarketplaceScreen() {
   const [showDepartPicker, setShowDepartPicker] = useState(false)
   const [showReturnPicker, setShowReturnPicker] = useState(false)
 
-  useEffect(() => {
-    AsyncStorage.getItem(WISHLIST_KEY).then(val => {
-      if (val) setWishlist(new Set(JSON.parse(val)))
-    })
-  }, [])
-
-  const toggleWishlist = useCallback(async (id: string) => {
+  const toggleWishlist = useCallback((id: string) => {
     setWishlist(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
-      AsyncStorage.setItem(WISHLIST_KEY, JSON.stringify([...next]))
       return next
     })
   }, [])
