@@ -91,7 +91,56 @@ function getAdvisoryStyle(advisory: string) {
   return map[advisory] ?? map['Exercise Caution']
 }
 
+// Module-level: survives remounts
 let activeFetch = false
+let _setSafety: ((d: SafetyData | null) => void) | null = null
+let _setError: ((e: string | null) => void) | null = null
+let _setLoading: ((l: boolean) => void) | null = null
+
+const fetchSafetyData = async (destination: string) => {
+  if (activeFetch) {
+    console.log('FETCH ALREADY ACTIVE, SKIPPING')
+    return
+  }
+
+  activeFetch = true
+  console.log('C: starting real fetch now')
+
+  try {
+    const response = await fetch('https://tripmatess.com/api/safety', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        systemPrompt: 'You are a travel safety expert. Respond only with valid JSON.',
+        userMessage: `Safety information for ${destination}`,
+      }),
+    })
+
+    console.log('D: response received, status:', response.status)
+    const text = await response.text()
+    console.log('E: response text:', text.substring(0, 200))
+
+    const match = text.match(/\{[\s\S]*\}/)
+    if (match) {
+      const data = JSON.parse(match[0])
+      console.log('F: parsed data keys:', Object.keys(data))
+      _setSafety?.(data)
+      _setError?.(null)
+    } else {
+      _setError?.('Could not parse response')
+    }
+  } catch (err: any) {
+    console.log('G: fetch error:', err.message)
+    _setError?.('Network error: ' + err.message)
+  } finally {
+    activeFetch = false
+    _setLoading?.(false)
+    console.log('H: fetch complete')
+  }
+}
 
 export default function SafetyScreen() {
   console.log('SAFETY SCREEN MOUNTED')
@@ -102,6 +151,11 @@ export default function SafetyScreen() {
   const [safety, setSafety] = useState<SafetyData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Keep module-level setter refs pointing at the current instance
+  _setSafety = setSafety
+  _setError = setError
+  _setLoading = setLoading
+
   const inputRef = useRef<TextInput>(null)
 
   const filtered = query.length > 0
@@ -110,51 +164,6 @@ export default function SafetyScreen() {
         d.country.toLowerCase().includes(query.toLowerCase())
       ).slice(0, 6)
     : []
-
-  const fetchSafetyData = async (destination: string) => {
-    if (activeFetch) {
-      console.log('FETCH ALREADY ACTIVE, SKIPPING')
-      return
-    }
-
-    activeFetch = true
-    console.log('C: starting real fetch now')
-
-    try {
-      const response = await fetch('https://tripmatess.com/api/safety', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          systemPrompt: 'You are a travel safety expert. Respond only with valid JSON.',
-          userMessage: `Safety information for ${destination}`,
-        }),
-      })
-
-      console.log('D: response received, status:', response.status)
-      const text = await response.text()
-      console.log('E: response text:', text.substring(0, 200))
-
-      const match = text.match(/\{[\s\S]*\}/)
-      if (match) {
-        const data = JSON.parse(match[0])
-        console.log('F: parsed data keys:', Object.keys(data))
-        setSafety(data)
-        setError(null)
-      } else {
-        setError('Could not parse response')
-      }
-    } catch (err: any) {
-      console.log('G: fetch error:', err.message)
-      setError('Network error: ' + err.message)
-    } finally {
-      activeFetch = false
-      setLoading(false)
-      console.log('H: fetch complete')
-    }
-  }
 
   const handleSelect = useCallback((dest: Destination) => {
     console.log('DESTINATION SELECTED:', dest.name, dest.country)
@@ -165,7 +174,9 @@ export default function SafetyScreen() {
     setSafety(null)
     setError(null)
     setLoading(true)
-    fetchSafetyData(`${dest.name}, ${dest.country}`)
+    const fullName = `${dest.name}, ${dest.country}`
+    console.log('Scheduling fetch in 500ms for:', fullName)
+    setTimeout(() => fetchSafetyData(fullName), 500)
   }, [])
 
   const handleClear = () => {
