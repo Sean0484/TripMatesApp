@@ -32,3 +32,5 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
     return this.props.children
   }
 }
+
+export default ErrorBoundary

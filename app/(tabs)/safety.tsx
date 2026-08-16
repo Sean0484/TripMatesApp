@@ -98,27 +98,12 @@ let _setError: ((e: string | null) => void) | null = null
 let _setLoading: ((l: boolean) => void) | null = null
 
 const fetchSafetyData = async (destination: string) => {
-  if (activeFetch) {
-    console.log('FETCH ALREADY ACTIVE, SKIPPING')
-    return
-  }
+  if (activeFetch) return
 
   activeFetch = true
   _setLoading?.(true)
-  console.log('C: starting real fetch now')
 
   try {
-    // Test basic network first
-    console.log('C1: testing network...')
-    const testResponse = await fetch('https://httpbin.org/post', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ test: 'hello' }),
-    })
-    console.log('C2: test network status:', testResponse.status)
-
-    // Now try real API
-    console.log('C3: trying real API...')
     const response = await fetch('https://tripmatess.com/api/safety', {
       method: 'POST',
       headers: {
@@ -130,31 +115,25 @@ const fetchSafetyData = async (destination: string) => {
         userMessage: `Safety information for ${destination}`,
       }),
     })
-    console.log('D: real API status:', response.status)
-    const text = await response.text()
-    console.log('E: response:', text.substring(0, 300))
 
+    const text = await response.text()
     const match = text.match(/\{[\s\S]*\}/)
     if (match) {
       const data = JSON.parse(match[0])
-      console.log('F: parsed data keys:', Object.keys(data))
       _setSafety?.(data)
       _setError?.(null)
     } else {
-      _setError?.('Could not parse response')
+      _setError?.('Could not parse safety data. Please try again.')
     }
   } catch (err: any) {
-    console.log('ERROR:', err.message, err.name)
-    _setError?.('Error: ' + err.message)
+    _setError?.('Could not load safety data. Please try again.')
   } finally {
     activeFetch = false
     _setLoading?.(false)
-    console.log('H: done')
   }
 }
 
 export default function SafetyScreen() {
-  console.log('SAFETY SCREEN MOUNTED')
   const [query, setQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const [selected, setSelected] = useState<Destination | null>(null)
@@ -177,7 +156,6 @@ export default function SafetyScreen() {
     : []
 
   const handleSelect = useCallback((dest: Destination) => {
-    console.log('DESTINATION SELECTED:', dest.name, dest.country)
     Keyboard.dismiss()
     setQuery(`${dest.flag} ${dest.name}, ${dest.country}`)
     setShowDropdown(false)
@@ -186,7 +164,6 @@ export default function SafetyScreen() {
     setError(null)
     setLoading(true)
     const fullName = `${dest.name}, ${dest.country}`
-    console.log('Scheduling fetch in 500ms for:', fullName)
     setTimeout(() => fetchSafetyData(fullName), 500)
   }, [])
 
@@ -199,7 +176,6 @@ export default function SafetyScreen() {
     inputRef.current?.focus()
   }
 
-  console.log('RENDERING SAFETY')
   return (
     <ErrorBoundary>
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -249,10 +225,7 @@ export default function SafetyScreen() {
               <TouchableOpacity
                 key={`${dest.name}-${dest.country}`}
                 style={[styles.dropdownItem, i < filtered.length - 1 && styles.dropdownDivider]}
-                onPress={() => {
-                  console.log('DROPDOWN ITEM PRESSED:', dest.name)
-                  handleSelect(dest)
-                }}
+                onPress={() => handleSelect(dest)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.dropdownFlag}>{dest.flag}</Text>
@@ -423,9 +396,7 @@ export default function SafetyScreen() {
                   style={styles.chip}
                   onPress={() => {
                     const name = chip.split(' ').slice(1).join(' ')
-                    console.log('CHIP PRESSED:', chip, '-> name:', name)
                     const dest = DESTINATIONS.find(d => d.name === name)
-                    console.log('CHIP DEST FOUND:', dest ? dest.name : 'NOT FOUND')
                     if (dest) handleSelect(dest)
                   }}
                 >
