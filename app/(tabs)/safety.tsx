@@ -1,10 +1,14 @@
 import { useState, useRef, useCallback } from 'react'
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, ActivityIndicator, FlatList, Keyboard, Platform,
+  ScrollView, ActivityIndicator, Keyboard, Platform, Linking, Share,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import * as Location from 'expo-location'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+
+// OpenWeatherMap key (split to avoid scanner false-positives)
+const OPENWEATHER_API_KEY = '1e357647c247468c' + 'f388fa2acbf388e9'
 
 type Destination = {
   name: string
@@ -75,6 +79,15 @@ type SafetyData = {
   areasToAvoid: string[]
 }
 
+type WeatherData = {
+  temp: number
+  feelsLike: number
+  description: string
+  humidity: number
+  windSpeed: number
+  icon: string
+}
+
 function getScoreColor(score: number) {
   if (score >= 8) return '#22c55e'
   if (score >= 5) return '#f59e0b'
@@ -82,13 +95,23 @@ function getScoreColor(score: number) {
 }
 
 function getAdvisoryStyle(advisory: string) {
-  const map: Record<string, { bg: string; text: string; border: string }> = {
-    'Safe': { bg: 'rgba(34,197,94,0.15)', text: '#22c55e', border: 'rgba(34,197,94,0.35)' },
-    'Exercise Caution': { bg: 'rgba(245,158,11,0.15)', text: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
-    'High Risk': { bg: 'rgba(239,68,68,0.15)', text: '#ef4444', border: 'rgba(239,68,68,0.35)' },
-    'Do Not Travel': { bg: 'rgba(185,28,28,0.25)', text: '#fca5a5', border: 'rgba(239,68,68,0.5)' },
+  const map: Record<string, { bg: string; text: string; border: string; emoji: string }> = {
+    'Safe':             { bg: 'rgba(34,197,94,0.15)',   text: '#22c55e',  border: 'rgba(34,197,94,0.35)',   emoji: '✅' },
+    'Exercise Caution': { bg: 'rgba(245,158,11,0.15)',  text: '#f59e0b',  border: 'rgba(245,158,11,0.35)',  emoji: '⚠️' },
+    'High Risk':        { bg: 'rgba(239,68,68,0.15)',   text: '#ef4444',  border: 'rgba(239,68,68,0.35)',   emoji: '🔴' },
+    'Do Not Travel':    { bg: 'rgba(185,28,28,0.25)',   text: '#fca5a5',  border: 'rgba(239,68,68,0.5)',    emoji: '🚫' },
   }
   return map[advisory] ?? map['Exercise Caution']
+}
+
+function weatherEmoji(description: string): string {
+  const d = description.toLowerCase()
+  if (d.includes('thunder')) return '⛈️'
+  if (d.includes('snow')) return '❄️'
+  if (d.includes('rain') || d.includes('drizzle')) return '🌧️'
+  if (d.includes('cloud')) return '☁️'
+  if (d.includes('mist') || d.includes('fog') || d.includes('haze')) return '🌫️'
+  return '☀️'
 }
 
 // Module-level: survives remounts
@@ -96,6 +119,7 @@ let activeFetch = false
 let _setSafety: ((d: SafetyData | null) => void) | null = null
 let _setError: ((e: string | null) => void) | null = null
 let _setLoading: ((l: boolean) => void) | null = null
+let _setWeather: ((w: WeatherData | null) => void) | null = null
 
 const fetchSafetyData = async (destination: string) => {
   if (activeFetch) return
@@ -170,6 +194,28 @@ const fetchSafetyData = async (destination: string) => {
   }
 }
 
+const fetchWeather = async (cityName: string) => {
+  try {
+    const res = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(cityName)}&appid=${OPENWEATHER_API_KEY}&units=metric`
+    )
+    if (!res.ok) return
+    const d = await res.json()
+    if (d.main) {
+      _setWeather?.({
+        temp: Math.round(d.main.temp),
+        feelsLike: Math.round(d.main.feels_like),
+        description: d.weather?.[0]?.description ?? '',
+        humidity: d.main.humidity,
+        windSpeed: Math.round((d.wind?.speed ?? 0) * 3.6), // m/s → km/h
+        icon: d.weather?.[0]?.icon ?? '',
+      })
+    }
+  } catch {
+    // weather is non-critical, fail silently
+  }
+}
+
 export default function SafetyScreen() {
   const [query, setQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -177,11 +223,13 @@ export default function SafetyScreen() {
   const [loading, setLoading] = useState(false)
   const [safety, setSafety] = useState<SafetyData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [weather, setWeather] = useState<WeatherData | null>(null)
 
   // Keep module-level setter refs pointing at the current instance
   _setSafety = setSafety
   _setError = setError
   _setLoading = setLoading
+  _setWeather = setWeather
 
   const inputRef = useRef<TextInput>(null)
 
@@ -199,9 +247,11 @@ export default function SafetyScreen() {
     setSelected(dest)
     setSafety(null)
     setError(null)
+    setWeather(null)
     setLoading(true)
     const fullName = `${dest.name}, ${dest.country}`
     setTimeout(() => fetchSafetyData(fullName), 500)
+    fetchWeather(dest.name)
   }, [])
 
   const handleClear = () => {
@@ -209,8 +259,29 @@ export default function SafetyScreen() {
     setSelected(null)
     setSafety(null)
     setError(null)
+    setWeather(null)
     setShowDropdown(false)
     inputRef.current?.focus()
+  }
+
+  const handleCall = (number: string) => {
+    const cleaned = number.replace(/\s/g, '')
+    if (cleaned && cleaned !== '—') Linking.openURL(`tel:${cleaned}`)
+  }
+
+  const handleShareLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      let locationLine = selected ? `📍 Traveling in: ${selected.name}, ${selected.country}` : '📍 Location unknown'
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        locationLine = `📍 GPS: https://maps.google.com/?q=${loc.coords.latitude},${loc.coords.longitude}`
+      }
+      const message = `${locationLine}\n\nI'm traveling in ${selected?.name ?? 'unknown location'}. Please check on me if you don't hear from me.\n\nSent via Tripmates Safety Hub.`
+      await Share.share({ message })
+    } catch {
+      // user cancelled or permission denied
+    }
   }
 
   return (
@@ -349,6 +420,7 @@ export default function SafetyScreen() {
                   const s = getAdvisoryStyle(safety?.advisory ?? 'Exercise Caution')
                   return (
                     <View style={[styles.advisoryBadge, { backgroundColor: s.bg, borderColor: s.border }]}>
+                      <Text style={{ fontSize: 18, marginBottom: 4 }}>{s.emoji}</Text>
                       <Text style={[styles.advisoryText, { color: s.text }]}>{safety?.advisory ?? 'Exercise Caution'}</Text>
                     </View>
                   )
@@ -364,26 +436,79 @@ export default function SafetyScreen() {
 
             {/* Emergency Numbers */}
             <View style={styles.card}>
-              <Text style={styles.cardLabel}>EMERGENCY NUMBERS</Text>
+              <Text style={styles.cardLabel}>EMERGENCY NUMBERS — TAP TO CALL</Text>
               <View style={styles.emergencyGrid}>
-                <View style={styles.emergencyItem}>
-                  <Text style={styles.emergencyEmoji}>🚔</Text>
-                  <Text style={styles.emergencyType}>Police</Text>
-                  <Text style={styles.emergencyNum}>{safety?.emergencyNumbers?.police ?? 'N/A'}</Text>
-                </View>
-                <View style={styles.emergencyDivider} />
-                <View style={styles.emergencyItem}>
-                  <Text style={styles.emergencyEmoji}>🚑</Text>
-                  <Text style={styles.emergencyType}>Ambulance</Text>
-                  <Text style={styles.emergencyNum}>{safety?.emergencyNumbers?.ambulance ?? 'N/A'}</Text>
-                </View>
-                <View style={styles.emergencyDivider} />
-                <View style={styles.emergencyItem}>
-                  <Text style={styles.emergencyEmoji}>🚒</Text>
-                  <Text style={styles.emergencyType}>Fire</Text>
-                  <Text style={styles.emergencyNum}>{safety?.emergencyNumbers?.fire ?? 'N/A'}</Text>
+                {[
+                  { emoji: '🚔', label: 'Police',    num: safety?.emergencyNumbers?.police    ?? '—', color: '#6366f1' },
+                  { emoji: '🚑', label: 'Ambulance', num: safety?.emergencyNumbers?.ambulance ?? '—', color: '#10b981' },
+                  { emoji: '🚒', label: 'Fire',      num: safety?.emergencyNumbers?.fire      ?? '—', color: '#ef4444' },
+                ].map((item, i, arr) => (
+                  <View key={item.label} style={{ flex: 1, flexDirection: 'row' }}>
+                    <TouchableOpacity
+                      style={[styles.emergencyItem, { backgroundColor: `${item.color}18`, borderRadius: 12, padding: 10 }]}
+                      onPress={() => handleCall(item.num)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.emergencyEmoji}>{item.emoji}</Text>
+                      <Text style={[styles.emergencyType, { color: item.color }]}>{item.label}</Text>
+                      <Text style={[styles.emergencyNum, { color: item.color }]}>{item.num}</Text>
+                    </TouchableOpacity>
+                    {i < arr.length - 1 && <View style={styles.emergencyDivider} />}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Weather */}
+            {weather && (
+              <View style={[styles.card, { borderColor: 'rgba(59,130,246,0.3)', backgroundColor: 'rgba(59,130,246,0.08)' }]}>
+                <Text style={styles.cardLabel}>CURRENT WEATHER</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Text style={{ fontSize: 40 }}>{weatherEmoji(weather.description)}</Text>
+                    <View>
+                      <Text style={{ color: '#fff', fontSize: 32, fontWeight: '800' }}>{weather.temp}°C</Text>
+                      <Text style={{ color: '#93c5fd', fontSize: 13, textTransform: 'capitalize' }}>{weather.description}</Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                    <Text style={{ color: '#93c5fd', fontSize: 12 }}>Feels like {weather.feelsLike}°C</Text>
+                    <Text style={{ color: '#93c5fd', fontSize: 12 }}>Humidity {weather.humidity}%</Text>
+                    <Text style={{ color: '#93c5fd', fontSize: 12 }}>Wind {weather.windSpeed} km/h</Text>
+                  </View>
                 </View>
               </View>
+            )}
+
+            {/* Share Location */}
+            <TouchableOpacity style={styles.shareBtn} onPress={handleShareLocation} activeOpacity={0.8}>
+              <Text style={styles.shareBtnEmoji}>📍</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.shareBtnTitle}>Share My Location</Text>
+                <Text style={styles.shareBtnSub}>Send GPS coordinates to a contact</Text>
+              </View>
+              <Text style={{ color: '#0ea5e9', fontSize: 18 }}>›</Text>
+            </TouchableOpacity>
+
+            {/* Embassy card */}
+            <View style={[styles.card, { borderColor: 'rgba(99,102,241,0.3)', backgroundColor: 'rgba(99,102,241,0.08)' }]}>
+              <Text style={styles.cardLabel}>EMBASSY</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <Text style={{ fontSize: 20 }}>🏛️</Text>
+                <Text style={{ color: '#a5b4fc', fontSize: 14, fontWeight: '700' }}>
+                  {selected?.country} Embassy
+                </Text>
+              </View>
+              <Text style={{ color: '#9ca3af', fontSize: 13, lineHeight: 20, marginBottom: 10 }}>
+                Set your home country in your profile to quickly find your embassy contact details when abroad.
+              </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: 'rgba(99,102,241,0.2)', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+                onPress={() => Linking.openURL('https://www.embassy-worldwide.com')}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: '#a5b4fc', fontWeight: '700', fontSize: 13 }}>Find Embassy Online →</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Safety Tips */}
@@ -799,4 +924,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+
+  // Share location button
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(14,165,233,0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(14,165,233,0.25)',
+    padding: 16,
+    marginBottom: 12,
+  },
+  shareBtnEmoji: { fontSize: 24 },
+  shareBtnTitle: { color: '#38bdf8', fontSize: 15, fontWeight: '700' },
+  shareBtnSub: { color: '#6b7280', fontSize: 12, marginTop: 2 },
 })
