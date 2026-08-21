@@ -2,7 +2,9 @@ import 'react-native-gesture-handler'
 import { useEffect, useState } from 'react'
 import { View, ActivityIndicator, StyleSheet } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
+import * as Notifications from 'expo-notifications'
 import { supabase } from '../lib/supabase'
+import { registerForPushNotifications } from '../lib/notifications'
 
 export default function RootLayout() {
   const [initialized, setInitialized] = useState(false)
@@ -13,10 +15,12 @@ export default function RootLayout() {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
-        // Already on welcome via index.tsx redirect — nothing to do
         setInitialized(true)
         return
       }
+
+      // Register for push notifications once we have a confirmed user
+      registerForPushNotifications(session.user.id)
 
       const { data } = await supabase
         .from('users')
@@ -24,7 +28,6 @@ export default function RootLayout() {
         .eq('id', session.user.id)
         .single()
 
-      // Treat null/undefined onboarding_complete as complete for existing users
       if (data?.onboarding_complete !== false) {
         router.replace('/(tabs)/discover')
       } else {
@@ -36,13 +39,33 @@ export default function RootLayout() {
 
     init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         router.replace('/(auth)/welcome')
+      }
+      if (event === 'SIGNED_IN' && session?.user) {
+        registerForPushNotifications(session.user.id)
       }
     })
 
     return () => subscription.unsubscribe()
+  }, [])
+
+  // Navigate to url from notification tap
+  useEffect(() => {
+    const received = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification.request.content.title)
+    })
+
+    const responded = Notifications.addNotificationResponseReceivedListener(response => {
+      const url = response.notification.request.content.data?.url as string | undefined
+      if (url) router.push(url as any)
+    })
+
+    return () => {
+      received.remove()
+      responded.remove()
+    }
   }, [])
 
   if (!initialized) {
