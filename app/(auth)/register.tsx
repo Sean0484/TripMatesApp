@@ -32,6 +32,9 @@ export default function RegisterScreen() {
   const [tempDob, setTempDob] = useState(new Date(2000, 0, 1))
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [verificationSent, setVerificationSent] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [checkLoading, setCheckLoading] = useState(false)
 
   const maxDate = new Date()
   maxDate.setFullYear(maxDate.getFullYear() - 18)
@@ -62,18 +65,104 @@ export default function RegisterScreen() {
       return
     }
 
+    setLoading(false)
+
     if (!data.session) {
-      Alert.alert(
-        'Check your email',
-        'We sent a confirmation link to ' + email.trim() + '. Click it to activate your account.',
-        [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
-      )
-      setLoading(false)
+      setVerificationSent(true)
       return
     }
 
-    setLoading(false)
     router.replace('/(onboarding)/vibes')
+  }
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() })
+    setResendLoading(false)
+    if (error) {
+      Alert.alert('Failed to resend', error.message)
+    } else {
+      Alert.alert('Email sent', 'Check your inbox for the verification link.')
+    }
+  }
+
+  const handleCheckVerified = async () => {
+    setCheckLoading(true)
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setCheckLoading(false)
+    if (error) {
+      const msg = error.message.toLowerCase()
+      if (msg.includes('not confirmed') || msg.includes('confirm') || msg.includes('verified')) {
+        Alert.alert('Not verified yet', 'Please click the link in your email first, then try again.')
+      } else {
+        Alert.alert('Error', error.message)
+      }
+      return
+    }
+    if (data.session) {
+      router.replace('/(onboarding)/vibes')
+    }
+  }
+
+  if (verificationSent) {
+    return (
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: '#0A1628' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <StatusBar style="light" />
+        <View style={styles.verifyContainer}>
+          <View style={styles.verifyIconWrap}>
+            <Text style={styles.verifyIcon}>✉️</Text>
+          </View>
+          <Text style={styles.verifyTitle}>Check your email!</Text>
+          <Text style={styles.verifyBody}>
+            We sent a verification link to{'\n'}
+            <Text style={styles.verifyEmail}>{email.trim()}</Text>
+          </Text>
+          <Text style={styles.verifyHint}>
+            Please verify your email before continuing.
+          </Text>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleCheckVerified}
+            disabled={checkLoading}
+            style={styles.buttonWrapper}
+          >
+            <LinearGradient
+              colors={['#1A6FFF', '#00B89C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.button}
+            >
+              {checkLoading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.buttonText}>I've verified my email</Text>
+              }
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.resendBtn}
+            onPress={handleResend}
+            disabled={resendLoading}
+            activeOpacity={0.7}
+          >
+            {resendLoading
+              ? <ActivityIndicator color="#1A6FFF" size="small" />
+              : <Text style={styles.resendText}>Resend Email</Text>
+            }
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.replace('/(auth)/login')} style={{ marginTop: 16 }}>
+            <Text style={styles.signinText}>
+              Back to <Text style={styles.signinBold}>Sign in</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    )
   }
 
   return (
@@ -370,6 +459,66 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  // Verification screen
+  verifyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  verifyIconWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+    backgroundColor: 'rgba(26,111,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+  },
+  verifyIcon: {
+    fontSize: 48,
+  },
+  verifyTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 14,
+    letterSpacing: -0.5,
+  },
+  verifyBody: {
+    fontSize: 15,
+    color: '#9ca3af',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 6,
+  },
+  verifyEmail: {
+    color: '#1A6FFF',
+    fontWeight: '700',
+  },
+  verifyHint: {
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  resendBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(26,111,255,0.3)',
+    alignItems: 'center',
+    marginTop: 4,
+    minWidth: 200,
+  },
+  resendText: {
+    color: '#1A6FFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   signinLink: {
