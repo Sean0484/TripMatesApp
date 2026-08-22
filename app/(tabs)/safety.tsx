@@ -154,11 +154,13 @@ const fetchSafetyData = async (destination: string) => {
         'Accept': 'application/json',
       },
       body: JSON.stringify({
-        systemPrompt: `You are a travel safety expert. You MUST respond with ONLY a valid JSON object, no markdown, no explanation. Use EXACTLY these field names:
+        systemPrompt: `IMPORTANT: Respond with ONLY a raw JSON object. No markdown. No backticks. No explanation. Start your response with { and end with }.
+
+Use EXACTLY these field names, nothing else:
 {
   "safety_score": 7,
   "travel_advisory": "Exercise Caution",
-  "safety_summary": "Brief summary here",
+  "safety_summary": "text here",
   "police_number": "110",
   "ambulance_number": "118",
   "fire_number": "113",
@@ -184,12 +186,7 @@ const fetchSafetyData = async (destination: string) => {
     if (!match) throw new Error('No JSON object in response')
 
     const raw = JSON.parse(match[0])
-    console.log('Safety raw keys:', Object.keys(raw).join(', '))
-    console.log('FULL DATA:', JSON.stringify(raw))
-    console.log('emergency_numbers:', raw.emergency_numbers)
-    console.log('emergencyNumbers:', raw.emergencyNumbers)
-    console.log('useful_contacts:', raw.useful_contacts)
-    console.log('emergency:', raw.emergency)
+    console.log('=== RAW SAFETY DATA ===', JSON.stringify(raw))
 
     // Map exact web API field names → native SafetyData shape
     const validAdvisories = ['Safe', 'Exercise Caution', 'High Risk', 'Do Not Travel']
