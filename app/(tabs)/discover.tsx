@@ -1075,9 +1075,17 @@ export default function DiscoverScreen() {
     })
   }
 
+  const isDragging = useRef(false)
+  const setDragging = (v: boolean) => { isDragging.current = v }
+
   const pan = Gesture.Pan()
-    .onUpdate((e) => { tx.value = e.translationX; ty.value = e.translationY })
+    .onUpdate((e) => {
+      runOnJS(setDragging)(true)
+      tx.value = e.translationX
+      ty.value = e.translationY
+    })
     .onEnd((e) => {
+      runOnJS(setDragging)(false)
       if (e.translationX > SWIPE_THRESHOLD) {
         tx.value = withTiming(W + 150, { duration: 300 }, (done) => { if (done) runOnJS(handleSwipe)('like') })
       } else if (e.translationX < -SWIPE_THRESHOLD) {
@@ -1089,12 +1097,6 @@ export default function DiscoverScreen() {
         ty.value = withSpring(0, { damping: 15, stiffness: 120 })
       }
     })
-
-  const tap = Gesture.Tap()
-    .runOnJS(true)
-    .onStart(() => { if (currentUser) setProfileUser(currentUser) })
-
-  const composed = Gesture.Exclusive(pan, tap)
 
   const topCardStyle = useAnimatedStyle(() => ({
     transform: [
@@ -1204,7 +1206,7 @@ export default function DiscoverScreen() {
                           <UserCard user={nextUser} />
                         </Animated.View>
                       )}
-                      <GestureDetector gesture={composed}>
+                      <GestureDetector gesture={pan}>
                         <Animated.View style={[st.cardWrap, topCardStyle, { zIndex: 2 }]}>
                           <UserCard user={currentUser} />
                           <Animated.View style={[st.likeOverlay, likeOpacity]}>
@@ -1216,6 +1218,13 @@ export default function DiscoverScreen() {
                           <Animated.View style={[st.superOverlay, superOpacity]}>
                             <Text style={st.superLabel}>SUPER ★</Text>
                           </Animated.View>
+                          <TouchableOpacity
+                            activeOpacity={1}
+                            onPress={() => {
+                              if (!isDragging.current) setProfileUser(currentUser)
+                            }}
+                            style={StyleSheet.absoluteFillObject}
+                          />
                         </Animated.View>
                       </GestureDetector>
                     </>
