@@ -184,6 +184,11 @@ const fetchSafetyData = async (destination: string) => {
 
     const raw = JSON.parse(match[0])
     console.log('Safety raw keys:', Object.keys(raw).join(', '))
+    console.log('FULL DATA:', JSON.stringify(raw))
+    console.log('emergency_numbers:', raw.emergency_numbers)
+    console.log('emergencyNumbers:', raw.emergencyNumbers)
+    console.log('useful_contacts:', raw.useful_contacts)
+    console.log('emergency:', raw.emergency)
 
     // Map exact web API field names → native SafetyData shape
     const validAdvisories = ['Safe', 'Exercise Caution', 'High Risk', 'Do Not Travel']
