@@ -154,17 +154,18 @@ const fetchSafetyData = async (destination: string) => {
         'Accept': 'application/json',
       },
       body: JSON.stringify({
-        systemPrompt: 'You are a travel safety expert. Provide accurate, specific safety information for travelers. Always respond with valid JSON only, no markdown, no explanation.',
-        userMessage: `Provide travel safety information for "${destination}". Return ONLY this exact JSON structure:
+        systemPrompt: `You are a travel safety expert. You MUST respond with ONLY a valid JSON object, no markdown, no explanation. Use EXACTLY these field names:
 {
-  "safety_score": <integer 1-10>,
-  "safety_summary": "<one sentence overview>",
-  "safety_tips": ["<tip1>","<tip2>","<tip3>","<tip4>","<tip5>"],
-  "emergency_numbers": {"police":"<number>","ambulance":"<number>","fire":"<number>"},
-  "areas_to_avoid": ["<area1>","<area2>","<area3>"],
-  "best_time_to_visit": "<string>",
-  "travel_advisory": "<Safe|Exercise Caution|High Risk|Do Not Travel>"
+  "safety_score": 7,
+  "travel_advisory": "Exercise Caution",
+  "safety_summary": "Brief summary here",
+  "police_number": "110",
+  "ambulance_number": "118",
+  "fire_number": "113",
+  "safety_tips": ["tip 1", "tip 2"],
+  "areas_to_avoid": ["area 1"]
 }`,
+        userMessage: `Provide travel safety information for "${destination}".`,
       }),
     })
 
@@ -199,9 +200,9 @@ const fetchSafetyData = async (destination: string) => {
                      ? (raw.travel_advisory ?? raw.advisory)
                      : 'Exercise Caution',
       emergencyNumbers: {
-        police:    raw.emergency_numbers?.police    ?? raw.emergencyNumbers?.police    ?? raw.useful_contacts?.emergency ?? raw.emergency?.police    ?? 'N/A',
-        ambulance: raw.emergency_numbers?.ambulance ?? raw.emergencyNumbers?.ambulance ?? raw.useful_contacts?.ambulance ?? raw.emergency?.ambulance ?? 'N/A',
-        fire:      raw.emergency_numbers?.fire      ?? raw.emergencyNumbers?.fire      ?? raw.useful_contacts?.fire      ?? raw.emergency?.fire      ?? 'N/A',
+        police:    raw.police_number    ?? 'N/A',
+        ambulance: raw.ambulance_number ?? 'N/A',
+        fire:      raw.fire_number      ?? 'N/A',
       },
       safetyTips:   Array.isArray(raw.safety_tips)   ? raw.safety_tips   : Array.isArray(raw.safetyTips)   ? raw.safetyTips   : [],
       areasToAvoid: Array.isArray(raw.areas_to_avoid) ? raw.areas_to_avoid : Array.isArray(raw.areasToAvoid) ? raw.areasToAvoid : [],
