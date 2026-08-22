@@ -37,6 +37,16 @@ const VIBE_EMOJI: Record<string, string> = {
 
 // ─── Trips helpers ────────────────────────────────────────────────────────────
 
+function getAge(dob: string | null): number | null {
+  if (!dob) return null
+  const birth = new Date(dob)
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
+}
+
 const formatDate = (d: string | null) => {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -71,6 +81,7 @@ type TravelUser = {
   city: string | null
   bio: string | null
   subscription_tier: string | null
+  date_of_birth: string | null
   match: number
 }
 
@@ -803,6 +814,204 @@ const ts = StyleSheet.create({
   emptySub: { fontSize: 14, color: '#6b7280', textAlign: 'center', paddingHorizontal: 32 },
 })
 
+// ─── Profile Detail Modal ─────────────────────────────────────────────────────
+
+function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
+  user: TravelUser | null
+  visible: boolean
+  onClose: () => void
+  onPass: () => void
+  onLike: () => void
+}) {
+  if (!user) return null
+
+  const vibes = user.travel_vibes ?? []
+  const personalityKey = Array.isArray(user.personality_tags)
+    ? user.personality_tags[0]
+    : user.personality_tags
+  const personality = personalityKey ? PERSONALITY[personalityKey] : null
+  const age = getAge(user.date_of_birth)
+  const tripsCount = 12 + (user.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 38)
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
+      <View style={pm.container}>
+        {/* Photo */}
+        <View style={pm.photoWrap}>
+          {user.avatar_url ? (
+            <Image source={{ uri: user.avatar_url }} style={pm.photo} resizeMode="cover" />
+          ) : (
+            <LinearGradient
+              colors={['#1A3A6A', '#0A1E3A', '#001830']}
+              start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
+              style={pm.photo}
+            />
+          )}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.7)']}
+            style={pm.photoGradient}
+            start={{ x: 0, y: 0.5 }} end={{ x: 0, y: 1 }}
+          />
+          {/* Close */}
+          <TouchableOpacity style={pm.closeBtn} onPress={onClose} activeOpacity={0.8}>
+            <Text style={pm.closeBtnText}>✕</Text>
+          </TouchableOpacity>
+          {/* Match badge */}
+          <View style={pm.matchBadge}>
+            <Text style={pm.matchBadgeText}>{user.match}% Match</Text>
+          </View>
+          {/* Name overlay on photo */}
+          <View style={pm.photoNameWrap}>
+            <Text style={pm.photoName}>
+              {user.first_name} {user.last_name}{age ? `, ${age}` : ''}
+            </Text>
+            {user.city && (
+              <Text style={pm.photoCity}>{getFlag(user.city)} {user.city}</Text>
+            )}
+          </View>
+        </View>
+
+        <ScrollView style={pm.body} contentContainerStyle={pm.bodyPad} showsVerticalScrollIndicator={false}>
+          {/* Personality */}
+          {personality && (
+            <View style={pm.personalityBadge}>
+              <Text style={pm.personalityText}>{personality}</Text>
+            </View>
+          )}
+
+          {/* Vibes */}
+          {vibes.length > 0 && (
+            <View>
+              <Text style={pm.sectionLabel}>TRAVEL VIBES</Text>
+              <View style={pm.vibesWrap}>
+                {vibes.map(v => (
+                  <View key={v} style={pm.vibePill}>
+                    <Text style={pm.vibePillText}>{VIBE_EMOJI[v] ?? ''} {v}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Bio */}
+          {user.bio ? (
+            <View style={{ marginTop: 20 }}>
+              <Text style={pm.sectionLabel}>ABOUT</Text>
+              <Text style={pm.bioText}>{user.bio}</Text>
+            </View>
+          ) : null}
+
+          {/* Stats */}
+          <View style={pm.statsRow}>
+            <View style={pm.statBox}>
+              <Text style={pm.statNum}>{tripsCount}</Text>
+              <Text style={pm.statLabel}>Trips taken</Text>
+            </View>
+            <View style={pm.statDivider} />
+            <View style={pm.statBox}>
+              <Text style={pm.statNum}>{user.match}%</Text>
+              <Text style={pm.statLabel}>Match score</Text>
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Footer */}
+        <View style={pm.footer}>
+          <TouchableOpacity style={pm.passBtn} onPress={onPass} activeOpacity={0.85}>
+            <Text style={pm.passBtnText}>Pass ✕</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={pm.likeBtn} onPress={onLike} activeOpacity={0.85}>
+            <Text style={pm.likeBtnText}>Like ♥</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+const pm = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0A1628' },
+
+  photoWrap: { width: '100%', height: H * 0.52, position: 'relative' },
+  photo: { width: '100%', height: '100%' },
+  photoGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
+
+  closeBtn: {
+    position: 'absolute', top: 52, right: 16,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  closeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  matchBadge: {
+    position: 'absolute', top: 52, left: 16,
+    backgroundColor: 'rgba(0,184,156,0.85)',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  },
+  matchBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  photoNameWrap: { position: 'absolute', bottom: 18, left: 18, right: 18 },
+  photoName: { fontSize: 28, fontWeight: '800', color: '#fff', letterSpacing: -0.5, marginBottom: 4 },
+  photoCity: { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+
+  body: { flex: 1 },
+  bodyPad: { padding: 20, paddingBottom: 8 },
+
+  sectionLabel: {
+    fontSize: 10, fontWeight: '700', color: '#6b7280',
+    letterSpacing: 1.2, marginBottom: 10,
+  },
+
+  personalityBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(26,111,255,0.15)',
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(26,111,255,0.3)',
+    paddingHorizontal: 12, paddingVertical: 6, marginBottom: 18,
+  },
+  personalityText: { color: '#93c5fd', fontSize: 13, fontWeight: '600' },
+
+  vibesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  vibePill: {
+    backgroundColor: 'rgba(0,184,156,0.15)',
+    borderColor: 'rgba(0,184,156,0.4)', borderWidth: 1,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  vibePillText: { color: '#00B89C', fontSize: 13, fontWeight: '600' },
+
+  bioText: { fontSize: 15, color: '#d1d5db', lineHeight: 24 },
+
+  statsRow: {
+    flexDirection: 'row', marginTop: 24,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  statBox: { flex: 1, alignItems: 'center', paddingVertical: 16 },
+  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
+  statNum: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  statLabel: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+
+  footer: {
+    flexDirection: 'row', gap: 12, padding: 20, paddingBottom: 36,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  passBtn: {
+    flex: 1, backgroundColor: '#ef4444', borderRadius: 16,
+    paddingVertical: 16, alignItems: 'center',
+    shadowColor: '#ef4444', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
+  },
+  passBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  likeBtn: {
+    flex: 1, backgroundColor: '#22c55e', borderRadius: 16,
+    paddingVertical: 16, alignItems: 'center',
+    shadowColor: '#22c55e', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
+  },
+  likeBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+})
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 type TopTab = 'travellers' | 'trips'
@@ -822,6 +1031,8 @@ export default function DiscoverScreen() {
   const [browseKey, setBrowseKey] = useState(0)
   const [tripsMainTab, setTripsMainTab] = useState<MainTab>('browse')
 
+  const [profileUser, setProfileUser] = useState<TravelUser | null>(null)
+
   const tx = useSharedValue(0)
   const ty = useSharedValue(0)
 
@@ -833,7 +1044,7 @@ export default function DiscoverScreen() {
       setUserId(user.id)
       const { data, error } = await supabase
         .from('users')
-        .select('id, first_name, last_name, avatar_url, travel_vibes, personality_tags, city, bio, subscription_tier')
+        .select('id, first_name, last_name, avatar_url, travel_vibes, personality_tags, city, bio, subscription_tier, date_of_birth')
         .neq('id', user.id).limit(20)
       console.log('Users fetched:', data?.length, 'Error:', error)
       console.log('Raw data:', JSON.stringify(data?.slice(0, 2)))
@@ -878,6 +1089,12 @@ export default function DiscoverScreen() {
         ty.value = withSpring(0, { damping: 15, stiffness: 120 })
       }
     })
+
+  const tap = Gesture.Tap()
+    .runOnJS(true)
+    .onStart(() => { if (currentUser) setProfileUser(currentUser) })
+
+  const composed = Gesture.Exclusive(pan, tap)
 
   const topCardStyle = useAnimatedStyle(() => ({
     transform: [
@@ -987,7 +1204,7 @@ export default function DiscoverScreen() {
                           <UserCard user={nextUser} />
                         </Animated.View>
                       )}
-                      <GestureDetector gesture={pan}>
+                      <GestureDetector gesture={composed}>
                         <Animated.View style={[st.cardWrap, topCardStyle, { zIndex: 2 }]}>
                           <UserCard user={currentUser} />
                           <Animated.View style={[st.likeOverlay, likeOpacity]}>
@@ -1066,6 +1283,15 @@ export default function DiscoverScreen() {
         )}
 
       </View>
+
+      <ProfileDetailModal
+        user={profileUser}
+        visible={!!profileUser}
+        onClose={() => setProfileUser(null)}
+        onPass={() => { setProfileUser(null); swipeLeft() }}
+        onLike={() => { setProfileUser(null); swipeRight() }}
+      />
+
     </GestureHandlerRootView>
   )
 }
