@@ -114,6 +114,25 @@ function weatherEmoji(description: string): string {
   return '☀️'
 }
 
+const DANISH_EMBASSIES: Record<string, { name: string; phone: string; email: string }> = {
+  'Indonesia':      { name: 'Danish Embassy Jakarta',     phone: '+62 21 5290 3900',  email: 'jakami@um.dk' },
+  'Thailand':       { name: 'Danish Embassy Bangkok',     phone: '+66 2 343 1100',    email: 'bangmi@um.dk' },
+  'Spain':          { name: 'Danish Embassy Madrid',      phone: '+34 91 431 8445',   email: 'madmi@um.dk' },
+  'France':         { name: 'Danish Embassy Paris',       phone: '+33 1 44 31 21 21', email: 'parmi@um.dk' },
+  'Germany':        { name: 'Danish Embassy Berlin',      phone: '+49 30 50 50 22 0', email: 'bermi@um.dk' },
+  'Italy':          { name: 'Danish Embassy Rome',        phone: '+39 06 9774 1800',  email: 'rommi@um.dk' },
+  'USA':            { name: 'Danish Embassy Washington',  phone: '+1 202 234 4300',   email: 'wasamb@um.dk' },
+  'UK':             { name: 'Danish Embassy London',      phone: '+44 20 7333 0200',  email: 'lonmi@um.dk' },
+  'United Kingdom': { name: 'Danish Embassy London',      phone: '+44 20 7333 0200',  email: 'lonmi@um.dk' },
+  'Australia':      { name: 'Danish Embassy Canberra',    phone: '+61 2 6270 5333',   email: 'canmi@um.dk' },
+  'Japan':          { name: 'Danish Embassy Tokyo',       phone: '+81 3 3496 3001',   email: 'tokmi@um.dk' },
+  'China':          { name: 'Danish Embassy Beijing',     phone: '+86 10 8532 9900',  email: 'pekami@um.dk' },
+  'India':          { name: 'Danish Embassy New Delhi',   phone: '+91 11 4200 6000',  email: 'newdmi@um.dk' },
+  'Brazil':         { name: 'Danish Embassy Brasilia',    phone: '+55 61 3878 5800',  email: 'brami@um.dk' },
+  'Mexico':         { name: 'Danish Embassy Mexico City', phone: '+52 55 5255 3405',  email: 'mexmi@um.dk' },
+  'Morocco':        { name: 'Danish Embassy Rabat',       phone: '+212 537 65 00 03', email: 'rabmi@um.dk' },
+}
+
 // Module-level: survives remounts
 let activeFetch = false
 let _setSafety: ((d: SafetyData | null) => void) | null = null
@@ -175,9 +194,9 @@ const fetchSafetyData = async (destination: string) => {
                      ? (raw.travel_advisory ?? raw.advisory)
                      : 'Exercise Caution',
       emergencyNumbers: {
-        police:    raw.emergency_numbers?.police    ?? raw.emergencyNumbers?.police    ?? '—',
-        ambulance: raw.emergency_numbers?.ambulance ?? raw.emergencyNumbers?.ambulance ?? '—',
-        fire:      raw.emergency_numbers?.fire      ?? raw.emergencyNumbers?.fire      ?? '—',
+        police:    raw.emergency_numbers?.police    ?? raw.emergencyNumbers?.police    ?? raw.useful_contacts?.emergency ?? raw.emergency?.police    ?? 'N/A',
+        ambulance: raw.emergency_numbers?.ambulance ?? raw.emergencyNumbers?.ambulance ?? raw.useful_contacts?.ambulance ?? raw.emergency?.ambulance ?? 'N/A',
+        fire:      raw.emergency_numbers?.fire      ?? raw.emergencyNumbers?.fire      ?? raw.useful_contacts?.fire      ?? raw.emergency?.fire      ?? 'N/A',
       },
       safetyTips:   Array.isArray(raw.safety_tips)   ? raw.safety_tips   : Array.isArray(raw.safetyTips)   ? raw.safetyTips   : [],
       areasToAvoid: Array.isArray(raw.areas_to_avoid) ? raw.areas_to_avoid : Array.isArray(raw.areasToAvoid) ? raw.areasToAvoid : [],
@@ -491,25 +510,55 @@ export default function SafetyScreen() {
             </TouchableOpacity>
 
             {/* Embassy card */}
-            <View style={[styles.card, { borderColor: 'rgba(99,102,241,0.3)', backgroundColor: 'rgba(99,102,241,0.08)' }]}>
-              <Text style={styles.cardLabel}>EMBASSY</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <Text style={{ fontSize: 20 }}>🏛️</Text>
-                <Text style={{ color: '#a5b4fc', fontSize: 14, fontWeight: '700' }}>
-                  {selected?.country} Embassy
-                </Text>
-              </View>
-              <Text style={{ color: '#9ca3af', fontSize: 13, lineHeight: 20, marginBottom: 10 }}>
-                Set your home country in your profile to quickly find your embassy contact details when abroad.
-              </Text>
-              <TouchableOpacity
-                style={{ backgroundColor: 'rgba(99,102,241,0.2)', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
-                onPress={() => Linking.openURL('https://www.embassy-worldwide.com')}
-                activeOpacity={0.7}
-              >
-                <Text style={{ color: '#a5b4fc', fontWeight: '700', fontSize: 13 }}>Find Embassy Online →</Text>
-              </TouchableOpacity>
-            </View>
+            {(() => {
+              const embassy = DANISH_EMBASSIES[selected.country]
+              if (embassy) {
+                return (
+                  <View style={[styles.card, { borderColor: 'rgba(99,102,241,0.3)', backgroundColor: 'rgba(99,102,241,0.08)' }]}>
+                    <Text style={styles.cardLabel}>DANISH EMBASSY</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <Text style={{ fontSize: 20 }}>🏛️</Text>
+                      <Text style={{ color: '#a5b4fc', fontSize: 14, fontWeight: '700' }}>{embassy.name}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.embassyContactRow}
+                      onPress={() => Linking.openURL(`tel:${embassy.phone.replace(/\s/g, '')}`)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.embassyContactIcon}>📞</Text>
+                      <Text style={styles.embassyContactText}>{embassy.phone}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.embassyContactRow, { marginTop: 8 }]}
+                      onPress={() => Linking.openURL(`mailto:${embassy.email}`)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.embassyContactIcon}>✉️</Text>
+                      <Text style={styles.embassyContactText}>{embassy.email}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )
+              }
+              return (
+                <View style={[styles.card, { borderColor: 'rgba(99,102,241,0.3)', backgroundColor: 'rgba(99,102,241,0.08)' }]}>
+                  <Text style={styles.cardLabel}>EMBASSY</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    <Text style={{ fontSize: 20 }}>🏛️</Text>
+                    <Text style={{ color: '#a5b4fc', fontSize: 14, fontWeight: '700' }}>Find Your Embassy</Text>
+                  </View>
+                  <Text style={{ color: '#9ca3af', fontSize: 13, lineHeight: 20, marginBottom: 10 }}>
+                    Find embassy contact details for your country worldwide
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: 'rgba(99,102,241,0.2)', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+                    onPress={() => Linking.openURL('https://www.embassypages.com')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ color: '#a5b4fc', fontWeight: '700', fontSize: 13 }}>Find Embassy →</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            })()}
 
             {/* Safety Tips */}
             {(safety?.safetyTips?.length ?? 0) > 0 && (
@@ -924,6 +973,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+
+  // Embassy contact rows
+  embassyContactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  embassyContactIcon: { fontSize: 16 },
+  embassyContactText: { color: '#a5b4fc', fontSize: 13, fontWeight: '600', flex: 1 },
 
   // Share location button
   shareBtn: {
