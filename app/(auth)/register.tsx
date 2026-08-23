@@ -9,6 +9,8 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 function isAtLeast18(date: Date): boolean {
   const today = new Date()
@@ -24,6 +26,7 @@ function formatDate(date: Date): string {
 
 export default function RegisterScreen() {
   const router = useRouter()
+  const { language } = useLanguage()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -191,14 +194,14 @@ export default function RegisterScreen() {
           >
             <Text style={styles.logoLetter}>T</Text>
           </LinearGradient>
-          <Text style={styles.heading}>Create your account</Text>
-          <Text style={styles.subheading}>Join thousands of travellers worldwide</Text>
+          <Text style={styles.heading}>{t('createAccount', language)}</Text>
+          <Text style={styles.subheading}>{t('joinThousands', language)}</Text>
         </View>
 
         {/* Name row */}
         <View style={styles.nameRow}>
           <View style={styles.nameField}>
-            <Text style={styles.label}>First name</Text>
+            <Text style={styles.label}>{t('firstName', language)}</Text>
             <TextInput
               style={styles.input}
               placeholder="Jane"
@@ -209,7 +212,7 @@ export default function RegisterScreen() {
             />
           </View>
           <View style={styles.nameField}>
-            <Text style={styles.label}>Last name</Text>
+            <Text style={styles.label}>{t('lastName', language)}</Text>
             <TextInput
               style={styles.input}
               placeholder="Smith"
@@ -223,7 +226,7 @@ export default function RegisterScreen() {
 
         {/* Email */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('emailAddress', language)}</Text>
           <TextInput
             style={styles.input}
             placeholder="you@example.com"
@@ -238,7 +241,7 @@ export default function RegisterScreen() {
 
         {/* Password */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('password', language)}</Text>
           <TextInput
             style={styles.input}
             placeholder="Min. 6 characters"
@@ -251,13 +254,13 @@ export default function RegisterScreen() {
 
         {/* Date of birth */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Date of birth</Text>
+          <Text style={styles.label}>{t('dateOfBirth', language)}</Text>
           <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)} activeOpacity={0.7}>
             <Text style={dob ? styles.inputText : styles.inputPlaceholder}>
               {dob ? formatDate(dob) : 'DD/MM/YYYY'}
             </Text>
           </TouchableOpacity>
-          <Text style={styles.dobHint}>You must be 18 or older to join</Text>
+          <Text style={styles.dobHint}>{t('dobHint', language)}</Text>
         </View>
 
         {/* Create Account button */}
@@ -282,10 +285,7 @@ export default function RegisterScreen() {
 
         {/* Sign in link */}
         <TouchableOpacity onPress={() => router.replace('/(auth)/login')} style={styles.signinLink}>
-          <Text style={styles.signinText}>
-            Already have an account?{' '}
-            <Text style={styles.signinBold}>Sign in</Text>
-          </Text>
+          <Text style={styles.signinText}>{t('alreadyHaveAccount', language)}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -310,11 +310,11 @@ export default function RegisterScreen() {
             <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
                 <TouchableOpacity onPress={() => setShowPicker(false)}>
-                  <Text style={styles.modalCancel}>Cancel</Text>
+                  <Text style={styles.modalCancel}>{t('cancel', language)}</Text>
                 </TouchableOpacity>
-                <Text style={styles.modalTitle}>Date of birth</Text>
+                <Text style={styles.modalTitle}>{t('dateOfBirth', language)}</Text>
                 <TouchableOpacity onPress={() => { setDob(tempDob); setShowPicker(false) }}>
-                  <Text style={styles.modalDone}>Done</Text>
+                  <Text style={styles.modalDone}>{t('done', language)}</Text>
                 </TouchableOpacity>
               </View>
               <DateTimePicker

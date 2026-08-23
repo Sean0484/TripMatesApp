@@ -2,11 +2,14 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-nati
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 const { width, height } = Dimensions.get('window')
 
 export default function WelcomeScreen() {
   const router = useRouter()
+  const { language } = useLanguage()
 
   return (
     <View style={styles.container}>
@@ -28,12 +31,10 @@ export default function WelcomeScreen() {
         </LinearGradient>
 
         <Text style={styles.wordmark}>Tripmates</Text>
-        <Text style={styles.tagline}>Find Your Crew.{'\n'}See The World.</Text>
+        <Text style={styles.tagline}>{t('welcomeTitle', language)}</Text>
 
         <View style={{ marginTop: 40 }}>
-        <Text style={styles.subtitleDesc}>
-          Connect with travelers, plan trips together, and explore the world with your perfect match.
-        </Text>
+        <Text style={styles.subtitleDesc}>{t('welcomeSubtitle', language)}</Text>
 
         {/* Stats row */}
         <View style={styles.statsRow}>
@@ -65,7 +66,7 @@ export default function WelcomeScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.primaryButton}
           >
-            <Text style={styles.primaryText}>Get Started</Text>
+            <Text style={styles.primaryText}>{t('getStarted', language)}</Text>
             <Text style={styles.primaryArrow}>→</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -75,7 +76,7 @@ export default function WelcomeScreen() {
           onPress={() => router.push('/(auth)/login')}
           style={styles.secondaryButton}
         >
-          <Text style={styles.secondaryText}>Sign In</Text>
+          <Text style={styles.secondaryText}>{t('signIn', language)}</Text>
         </TouchableOpacity>
 
         <Text style={styles.legal}>

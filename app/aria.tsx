@@ -7,6 +7,8 @@ import {
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useLanguage } from '../context/LanguageContext'
+import { t } from '../lib/i18n'
 
 const SUGGESTIONS = [
   'Plan a trip to Bali 🌴',
@@ -30,6 +32,7 @@ const newId = () => String(++msgId)
 export default function AriaScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { language } = useLanguage()
   const listRef = useRef<FlatList>(null)
 
   const [messages, setMessages] = useState<Message[]>([
@@ -186,7 +189,7 @@ export default function AriaScreen() {
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
           <TextInput
             style={styles.input}
-            placeholder="Ask ARIA anything..."
+            placeholder={language === 'da' ? 'Spørg ARIA om noget...' : 'Ask ARIA anything...'}
             placeholderTextColor="#4b5563"
             value={input}
             onChangeText={setInput}

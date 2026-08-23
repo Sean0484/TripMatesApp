@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -109,6 +111,7 @@ const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 
 export default function MarketplaceScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { language } = useLanguage()
 
   // Global search
   const [searchQuery, setSearchQuery] = useState('')
@@ -180,7 +183,7 @@ export default function MarketplaceScreen() {
           end={{ x: 1, y: 1 }}
           style={[styles.header, { paddingTop: insets.top + 16 }]}
         >
-          <Text style={styles.headerTitle}>Marketplace</Text>
+          <Text style={styles.headerTitle}>{t('marketplace', language)}</Text>
           <Text style={styles.headerSub}>Flights, hotels, experiences & more</Text>
 
           {/* Search bar */}

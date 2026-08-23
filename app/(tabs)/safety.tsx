@@ -6,6 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as Location from 'expo-location'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 // OpenWeatherMap key (split to avoid scanner false-positives)
 const OPENWEATHER_API_KEY = '1e357647c247468c' + 'f388fa2acbf388e9'
@@ -239,6 +241,7 @@ const fetchWeather = async (cityName: string) => {
 }
 
 export default function SafetyScreen() {
+  const { language } = useLanguage()
   const [query, setQuery] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const [selected, setSelected] = useState<Destination | null>(null)
@@ -313,8 +316,8 @@ export default function SafetyScreen() {
       <View style={styles.header}>
         <Text style={styles.headerEmoji}>🛡️</Text>
         <View>
-          <Text style={styles.headerTitle}>Safety Hub</Text>
-          <Text style={styles.headerSub}>AI-powered travel safety</Text>
+          <Text style={styles.headerTitle}>{t('safetyHub', language)}</Text>
+          <Text style={styles.headerSub}>{t('aiPoweredSafety', language)}</Text>
         </View>
       </View>
 
@@ -325,7 +328,7 @@ export default function SafetyScreen() {
           <TextInput
             ref={inputRef}
             style={styles.searchInput}
-            placeholder="Search any destination..."
+            placeholder={t('searchDestination', language)}
             placeholderTextColor="#4b5563"
             value={query}
             onChangeText={t => {
@@ -384,7 +387,7 @@ export default function SafetyScreen() {
         {loading && (
           <View style={styles.centerState}>
             <ActivityIndicator size="large" color="#1A6FFF" />
-            <Text style={styles.loadingText}>Analyzing safety for {selected?.name}...</Text>
+            <Text style={styles.loadingText}>{t('analyzingSafety', language)} {selected?.name}...</Text>
           </View>
         )}
 
@@ -392,11 +395,11 @@ export default function SafetyScreen() {
         {!loading && error && (
           <View style={styles.errorCard}>
             <Text style={styles.errorEmoji}>⚠️</Text>
-            <Text style={styles.errorTitle}>Couldn't load safety data</Text>
+            <Text style={styles.errorTitle}>{t('couldntLoad', language)}</Text>
             <Text style={styles.errorMsg}>{error}</Text>
             {selected && (
               <TouchableOpacity style={styles.retryBtn} onPress={() => handleSelect(selected)}>
-                <Text style={styles.retryText}>Try Again</Text>
+                <Text style={styles.retryText}>{t('tryAgain', language)}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -415,7 +418,7 @@ export default function SafetyScreen() {
             <View style={styles.scoreAdvisoryRow}>
               {/* Safety Score */}
               <View style={[styles.card, styles.scoreCard]}>
-                <Text style={styles.cardLabel}>SAFETY SCORE</Text>
+                <Text style={styles.cardLabel}>{t('safetyScore', language)}</Text>
                 <View style={styles.scoreDisplay}>
                   <Text style={[styles.scoreNumber, { color: getScoreColor(safety?.safetyScore ?? 5) }]}>
                     {safety?.safetyScore ?? '—'}
@@ -458,7 +461,7 @@ export default function SafetyScreen() {
 
             {/* Emergency Numbers */}
             <View style={styles.card}>
-              <Text style={styles.cardLabel}>EMERGENCY NUMBERS — TAP TO CALL</Text>
+              <Text style={styles.cardLabel}>{t('emergencyNumbers', language)}</Text>
               <View style={styles.emergencyGrid}>
                 {[
                   { emoji: '🚔', label: 'Police',    num: safety?.emergencyNumbers?.police    ?? '—', color: '#6366f1' },
@@ -566,7 +569,7 @@ export default function SafetyScreen() {
             {/* Safety Tips */}
             {(safety?.safetyTips?.length ?? 0) > 0 && (
               <View style={styles.card}>
-                <Text style={styles.cardLabel}>SAFETY TIPS</Text>
+                <Text style={styles.cardLabel}>{t('safetyTips', language)}</Text>
                 {(safety?.safetyTips ?? []).map((tip, i) => (
                   <View key={i} style={styles.listItem}>
                     <View style={styles.listDot} />
@@ -579,7 +582,7 @@ export default function SafetyScreen() {
             {/* Areas to Avoid */}
             {(safety?.areasToAvoid?.length ?? 0) > 0 && (
               <View style={styles.card}>
-                <Text style={styles.cardLabel}>AREAS TO AVOID</Text>
+                <Text style={styles.cardLabel}>{t('areasToAvoid', language)}</Text>
                 {(safety?.areasToAvoid ?? []).map((area, i) => (
                   <View key={i} style={styles.listItem}>
                     <View style={[styles.listDot, { backgroundColor: '#ef4444' }]} />
@@ -599,10 +602,8 @@ export default function SafetyScreen() {
         {!loading && !error && !safety && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🛡️</Text>
-            <Text style={styles.emptyTitle}>Stay Safe Wherever You Go</Text>
-            <Text style={styles.emptyText}>
-              Search for a destination to see AI-powered safety information
-            </Text>
+            <Text style={styles.emptyTitle}>{t('staysSafe', language)}</Text>
+            <Text style={styles.emptyText}>{t('searchForDestination', language)}</Text>
             <View style={styles.exampleChips}>
               {['🇯🇵 Tokyo', '🇮🇩 Bali', '🇲🇦 Marrakech'].map(chip => (
                 <TouchableOpacity

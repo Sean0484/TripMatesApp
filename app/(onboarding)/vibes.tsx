@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 const VIBES = [
   { label: 'Adventure',     emoji: '🏔️' },
@@ -40,6 +42,7 @@ const stepStyles = StyleSheet.create({
 
 export default function VibesScreen() {
   const router = useRouter()
+  const { language } = useLanguage()
   const [selected, setSelected] = useState<string[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -75,8 +78,8 @@ export default function VibesScreen() {
         </TouchableOpacity>
 
         <StepBar step={1} />
-        <Text style={styles.heading}>What's your travel vibe?</Text>
-        <Text style={styles.sub}>Select at least {MIN_VIBES}</Text>
+        <Text style={styles.heading}>{t('travelVibes', language)}</Text>
+        <Text style={styles.sub}>{t('selectAtLeast3', language)}</Text>
 
         <View style={styles.grid}>
           {VIBES.map(v => {
@@ -115,7 +118,7 @@ export default function VibesScreen() {
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={styles.btn}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Continue →</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t('continue', language)}</Text>}
           </LinearGradient>
         </TouchableOpacity>
       </View>

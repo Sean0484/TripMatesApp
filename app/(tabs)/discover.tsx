@@ -13,6 +13,8 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { LinearGradient } from 'expo-linear-gradient'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 const { width: W, height: H } = Dimensions.get('window')
 const CARD_W = W - 32
@@ -1018,6 +1020,7 @@ type TopTab = 'travellers' | 'trips'
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets()
+  const { language } = useLanguage()
   const [topTab, setTopTab] = useState<TopTab>('travellers')
 
   // Travellers state
@@ -1167,7 +1170,7 @@ export default function DiscoverScreen() {
             activeOpacity={0.75}
           >
             <Text style={[st.topTabLabel, topTab === 'travellers' && st.topTabLabelActive]}>
-              Travellers
+              {t('travellers', language)}
             </Text>
             {topTab === 'travellers' && <View style={st.topTabUnderline} />}
           </TouchableOpacity>
@@ -1177,7 +1180,7 @@ export default function DiscoverScreen() {
             activeOpacity={0.75}
           >
             <Text style={[st.topTabLabel, topTab === 'trips' && st.topTabLabelActive]}>
-              Trips
+              {t('trips', language)}
             </Text>
             {topTab === 'trips' && <View style={st.topTabUnderline} />}
           </TouchableOpacity>
@@ -1196,8 +1199,7 @@ export default function DiscoverScreen() {
                   {!currentUser ? (
                     <View style={st.emptyState}>
                       <Text style={st.emptyEmoji}>🌍</Text>
-                      <Text style={st.emptyTitle}>You've seen everyone!</Text>
-                      <Text style={st.emptySub}>Check back later for new travellers</Text>
+                      <Text style={st.emptyTitle}>{t('noMoreProfiles', language)}</Text>
                     </View>
                   ) : (
                     <>

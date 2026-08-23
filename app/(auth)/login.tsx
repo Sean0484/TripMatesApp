@@ -11,6 +11,8 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import * as LocalAuthentication from 'expo-local-authentication'
 import * as SecureStore from 'expo-secure-store'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 async function navigateAfterLogin(router: ReturnType<typeof useRouter>, userId: string) {
   const { data } = await supabase
@@ -29,6 +31,7 @@ type BiometricType = 'faceid' | 'touchid' | 'fingerprint' | null
 
 export default function LoginScreen() {
   const router = useRouter()
+  const { language } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -184,8 +187,8 @@ export default function LoginScreen() {
           >
             <Text style={styles.logoLetter}>T</Text>
           </LinearGradient>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to your Tripmates account</Text>
+          <Text style={styles.title}>{t('welcomeBack', language)}</Text>
+          <Text style={styles.subtitle}>{t('signInSubtitle', language)}</Text>
         </View>
 
         {/* OAuth buttons */}
@@ -202,7 +205,7 @@ export default function LoginScreen() {
             ) : (
               <>
                 <Text style={styles.appleIcon}></Text>
-                <Text style={styles.appleText}>Continue with Apple</Text>
+                <Text style={styles.appleText}>{t('continueWithApple', language)}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -221,7 +224,7 @@ export default function LoginScreen() {
                 <View style={styles.googleLogoWrap}>
                   <Text style={styles.googleLogoR}>G</Text>
                 </View>
-                <Text style={styles.googleText}>Continue with Google</Text>
+                <Text style={styles.googleText}>{t('continueWithGoogle', language)}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -230,14 +233,14 @@ export default function LoginScreen() {
         {/* Divider */}
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or sign in with email</Text>
+          <Text style={styles.dividerText}>{t('orSignInWithEmail', language)}</Text>
           <View style={styles.dividerLine} />
         </View>
 
         {/* Email / password inputs */}
         <View style={styles.inputs}>
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={styles.inputLabel}>{t('emailAddress', language)}</Text>
             <TextInput
               style={styles.input}
               placeholder="you@example.com"
@@ -252,9 +255,9 @@ export default function LoginScreen() {
 
           <View style={styles.inputWrapper}>
             <View style={styles.passwordLabelRow}>
-              <Text style={styles.inputLabel}>Password</Text>
+              <Text style={styles.inputLabel}>{t('password', language)}</Text>
               <TouchableOpacity onPress={() => Alert.alert('Reset password', 'Check your email for a reset link.')}>
-                <Text style={styles.forgotLink}>Forgot password?</Text>
+                <Text style={styles.forgotLink}>{t('forgotPassword', language)}</Text>
               </TouchableOpacity>
             </View>
             <TextInput
@@ -284,7 +287,7 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.loginText}>Log In</Text>
+              <Text style={styles.loginText}>{t('logIn', language)}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -314,10 +317,7 @@ export default function LoginScreen() {
 
         {/* Register link */}
         <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={styles.registerLink}>
-          <Text style={styles.registerText}>
-            Don't have an account?{' '}
-            <Text style={styles.registerBold}>Sign up</Text>
-          </Text>
+          <Text style={styles.registerText}>{t('noAccount', language)}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

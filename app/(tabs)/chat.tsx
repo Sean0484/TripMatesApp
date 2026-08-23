@@ -7,6 +7,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,6 +105,7 @@ function ChatDetail({ target, userId, visible, onClose }: {
   onClose: () => void
 }) {
   const insets = useSafeAreaInsets()
+  const { language } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [text, setText] = useState('')
@@ -272,7 +275,7 @@ function ChatDetail({ target, userId, visible, onClose }: {
         <View style={[cd.inputRow, { paddingBottom: insets.bottom + 8 }]}>
           <TextInput
             style={cd.input}
-            placeholder="Type a message..."
+            placeholder={t('typeMessage', language)}
             placeholderTextColor="#4b5563"
             value={text}
             onChangeText={setText}
@@ -385,6 +388,7 @@ function TripChatsTab({ userId, onOpen }: {
 }) {
   const [chats, setChats] = useState<TripChatItem[]>([])
   const [loading, setLoading] = useState(true)
+  const { language } = useLanguage()
 
   useEffect(() => {
     const load = async () => {
@@ -444,8 +448,8 @@ function TripChatsTab({ userId, onOpen }: {
     return (
       <View style={s.emptyState}>
         <Text style={s.emptyEmoji}>✈️</Text>
-        <Text style={s.emptyTitle}>No trip chats yet</Text>
-        <Text style={s.emptySub}>Join a trip to start chatting!</Text>
+        <Text style={s.emptyTitle}>{t('noTripChats', language)}</Text>
+        <Text style={s.emptySub}>{t('joinTripToChat', language)}</Text>
       </View>
     )
   }
@@ -475,6 +479,7 @@ function DirectMessagesTab({ userId, onOpen }: {
 }) {
   const [conversations, setConversations] = useState<DMItem[]>([])
   const [loading, setLoading] = useState(true)
+  const { language } = useLanguage()
 
   useEffect(() => {
     const load = async () => {
@@ -537,8 +542,8 @@ function DirectMessagesTab({ userId, onOpen }: {
     return (
       <View style={s.emptyState}>
         <Text style={s.emptyEmoji}>💬</Text>
-        <Text style={s.emptyTitle}>No messages yet</Text>
-        <Text style={s.emptySub}>Start swiping to find travel companions!</Text>
+        <Text style={s.emptyTitle}>{t('noDirectMessages', language)}</Text>
+        <Text style={s.emptySub}>{t('startSwiping', language)}</Text>
       </View>
     )
   }
@@ -566,6 +571,7 @@ type MainTab = 'trips' | 'dms'
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets()
+  const { language } = useLanguage()
   const [tab, setTab] = useState<MainTab>('trips')
   const [userId, setUserId] = useState<string | null>(null)
   const [chatTarget, setChatTarget] = useState<ChatTarget | null>(null)
@@ -591,7 +597,7 @@ export default function ChatScreen() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       {/* Top bar */}
       <View style={s.topBar}>
-        <Text style={s.topBarTitle}>Messages</Text>
+        <Text style={s.topBarTitle}>{t('messages', language)}</Text>
       </View>
 
       {/* Tab toggle */}
@@ -600,13 +606,13 @@ export default function ChatScreen() {
           style={[s.tabBtn, tab === 'trips' && s.tabBtnActive]}
           onPress={() => setTab('trips')}
         >
-          <Text style={[s.tabText, tab === 'trips' && s.tabTextActive]}>✈️ Trip Chats</Text>
+          <Text style={[s.tabText, tab === 'trips' && s.tabTextActive]}>{t('tripChats', language)}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.tabBtn, tab === 'dms' && s.tabBtnActive]}
           onPress={() => setTab('dms')}
         >
-          <Text style={[s.tabText, tab === 'dms' && s.tabTextActive]}>💬 Direct</Text>
+          <Text style={[s.tabText, tab === 'dms' && s.tabTextActive]}>{t('directMessages', language)}</Text>
         </TouchableOpacity>
       </View>
 

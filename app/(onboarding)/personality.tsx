@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 const TYPES = [
   { key: 'early_bird',   label: 'Early Bird',   emoji: '🌅', desc: 'Up at dawn, first to explore' },
@@ -30,6 +32,7 @@ const stepStyles = StyleSheet.create({
 
 export default function PersonalityScreen() {
   const router = useRouter()
+  const { language } = useLanguage()
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -55,8 +58,8 @@ export default function PersonalityScreen() {
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
         <StepBar step={2} />
-        <Text style={styles.heading}>Your travel personality</Text>
-        <Text style={styles.sub}>Choose the one that fits you best</Text>
+        <Text style={styles.heading}>{t('yourTravelPersonality', language)}</Text>
+        <Text style={styles.sub}>{t('chooseBestFit', language)}</Text>
 
         <View style={styles.cards}>
           {TYPES.map(t => {
@@ -92,7 +95,7 @@ export default function PersonalityScreen() {
           style={styles.btnWrap}
         >
           <LinearGradient colors={['#1A6FFF', '#0A4CC9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Continue →</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t('continue', language)}</Text>}
           </LinearGradient>
         </TouchableOpacity>
       </View>

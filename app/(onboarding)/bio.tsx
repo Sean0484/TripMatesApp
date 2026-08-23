@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
+import { t } from '../../lib/i18n'
 
 const BUDGETS = ['Budget', 'Mid-range', 'Luxury'] as const
 type Budget = typeof BUDGETS[number]
@@ -59,6 +61,7 @@ const stepStyles = StyleSheet.create({
 
 export default function BioScreen() {
   const router = useRouter()
+  const { language } = useLanguage()
   const [country, setCountry] = useState('')
   const [countrySearch, setCountrySearch] = useState('')
   const [showCountryModal, setShowCountryModal] = useState(false)
@@ -144,19 +147,19 @@ export default function BioScreen() {
         </TouchableOpacity>
 
         <StepBar step={4} />
-        <Text style={styles.heading}>Almost there!</Text>
-        <Text style={styles.sub}>Tell travellers a bit about yourself</Text>
+        <Text style={styles.heading}>{t('almostThere', language)}</Text>
+        <Text style={styles.sub}>{t('tellTravellers', language)}</Text>
 
         {/* Country picker */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Your country</Text>
+          <Text style={styles.label}>{t('yourCountry', language)}</Text>
           <TouchableOpacity
             style={styles.input}
             onPress={() => { setCountrySearch(''); setShowCountryModal(true) }}
             activeOpacity={0.8}
           >
             <Text style={country ? styles.inputText : styles.inputPlaceholder}>
-              {country || 'Select country…'}
+              {country || t('selectCountry', language)}
             </Text>
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
@@ -164,7 +167,7 @@ export default function BioScreen() {
 
         {/* Budget */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Travel budget</Text>
+          <Text style={styles.label}>{t('travelBudget', language)}</Text>
           <View style={styles.budgetRow}>
             {BUDGETS.map(b => {
               const on = budget === b
@@ -185,7 +188,7 @@ export default function BioScreen() {
         {/* Bio */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
-            <Text style={styles.label}>Bio</Text>
+            <Text style={styles.label}>{t('bio', language)}</Text>
             <Text style={styles.charCount}>{bio.length}/150</Text>
           </View>
           <TextInput
@@ -207,7 +210,7 @@ export default function BioScreen() {
           >
             {aiLoading
               ? <ActivityIndicator size="small" color="#1A6FFF" />
-              : <Text style={styles.aiBtnText}>✨ Generate with AI</Text>}
+              : <Text style={styles.aiBtnText}>{t('generateBio', language)}</Text>}
           </TouchableOpacity>
         </View>
 
@@ -218,7 +221,7 @@ export default function BioScreen() {
           style={styles.btnWrap}
         >
           <LinearGradient colors={['#1A6FFF', '#00B89C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btn}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Complete Profile 🎉</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t('completeProfile', language)}</Text>}
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
@@ -237,7 +240,7 @@ export default function BioScreen() {
             <View style={modal.searchWrap}>
               <TextInput
                 style={modal.search}
-                placeholder="Search countries..."
+                placeholder={t('searchCountries', language)}
                 placeholderTextColor="#4b5563"
                 value={countrySearch}
                 onChangeText={setCountrySearch}
