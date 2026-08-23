@@ -6,6 +6,7 @@ import * as Notifications from 'expo-notifications'
 import { supabase } from '../lib/supabase'
 import { registerForPushNotifications } from '../lib/notifications'
 import { LanguageProvider } from '../context/LanguageContext'
+import { SubscriptionProvider } from '../context/SubscriptionContext'
 
 export default function RootLayout() {
   const [initialized, setInitialized] = useState(false)
@@ -79,7 +80,9 @@ export default function RootLayout() {
 
   return (
     <LanguageProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <SubscriptionProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </SubscriptionProvider>
     </LanguageProvider>
   )
 }

@@ -12,9 +12,11 @@ import Animated, {
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import { LinearGradient } from 'expo-linear-gradient'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
+import { useSubscription } from '../../context/SubscriptionContext'
 
 const { width: W, height: H } = Dimensions.get('window')
 const CARD_W = W - 32
@@ -1018,15 +1020,21 @@ const pm = StyleSheet.create({
 
 type TopTab = 'travellers' | 'trips'
 
+const DAILY_SWIPE_LIMIT = 10
+const SWIPE_STORAGE_KEY = 'discover_swipes_today'
+const SWIPE_DATE_KEY = 'discover_swipes_date'
+
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets()
   const { language } = useLanguage()
+  const { canAccess, showUpgradeModal } = useSubscription()
   const [topTab, setTopTab] = useState<TopTab>('travellers')
 
   // Travellers state
   const [users, setUsers] = useState<TravelUser[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [swipesToday, setSwipesToday] = useState(0)
 
   // Trips state
   const [userId, setUserId] = useState<string | null>(null)
@@ -1038,6 +1046,22 @@ export default function DiscoverScreen() {
 
   const tx = useSharedValue(0)
   const ty = useSharedValue(0)
+
+  useEffect(() => {
+    const loadSwipeCount = async () => {
+      const today = new Date().toDateString()
+      const savedDate = await AsyncStorage.getItem(SWIPE_DATE_KEY)
+      if (savedDate !== today) {
+        await AsyncStorage.setItem(SWIPE_DATE_KEY, today)
+        await AsyncStorage.setItem(SWIPE_STORAGE_KEY, '0')
+        setSwipesToday(0)
+      } else {
+        const count = await AsyncStorage.getItem(SWIPE_STORAGE_KEY)
+        setSwipesToday(count ? parseInt(count, 10) : 0)
+      }
+    }
+    loadSwipeCount()
+  }, [])
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -1058,9 +1082,20 @@ export default function DiscoverScreen() {
   }, [])
 
   const handleSwipe = useCallback((action: 'like' | 'pass' | 'super_like') => {
+    if (!canAccess('unlimited_requests') && swipesToday >= DAILY_SWIPE_LIMIT) {
+      tx.value = withSpring(0, { damping: 15, stiffness: 120 })
+      ty.value = withSpring(0, { damping: 15, stiffness: 120 })
+      showUpgradeModal('unlimited_requests')
+      return
+    }
     tx.value = 0; ty.value = 0
     setCurrentIndex(i => i + 1)
-  }, [tx, ty])
+    setSwipesToday(prev => {
+      const next = prev + 1
+      AsyncStorage.setItem(SWIPE_STORAGE_KEY, String(next))
+      return next
+    })
+  }, [tx, ty, canAccess, swipesToday, showUpgradeModal])
 
   const swipeRight = () => {
     tx.value = withTiming(W + 150, { duration: 350 }, (done) => {
@@ -1234,17 +1269,26 @@ export default function DiscoverScreen() {
                 </View>
 
                 {currentUser && (
-                  <View style={st.actions}>
-                    <TouchableOpacity style={[st.actionBtn, st.passBtn]} onPress={swipeLeft} activeOpacity={0.8}>
-                      <Text style={st.passIcon}>✕</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[st.actionBtn, st.superBtn]} onPress={swipeUp} activeOpacity={0.8}>
-                      <Text style={st.superIcon}>★</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[st.actionBtn, st.likeBtn]} onPress={swipeRight} activeOpacity={0.8}>
-                      <Text style={st.likeIcon}>♥</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <>
+                    {!canAccess('unlimited_requests') && (
+                      <View style={st.swipeCounter}>
+                        <Text style={st.swipeCounterText}>
+                          {Math.max(0, DAILY_SWIPE_LIMIT - swipesToday)} swipes left today
+                        </Text>
+                      </View>
+                    )}
+                    <View style={st.actions}>
+                      <TouchableOpacity style={[st.actionBtn, st.passBtn]} onPress={swipeLeft} activeOpacity={0.8}>
+                        <Text style={st.passIcon}>✕</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[st.actionBtn, st.superBtn]} onPress={swipeUp} activeOpacity={0.8}>
+                        <Text style={st.superIcon}>★</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[st.actionBtn, st.likeBtn]} onPress={swipeRight} activeOpacity={0.8}>
+                        <Text style={st.likeIcon}>♥</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
                 )}
               </>
             )}
@@ -1401,6 +1445,12 @@ const st = StyleSheet.create({
     borderWidth: 3, borderColor: '#3b82f6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
   },
   superLabel: { color: '#3b82f6', fontSize: 26, fontWeight: '900', letterSpacing: 2 },
+
+  // Swipe counter
+  swipeCounter: {
+    alignItems: 'center', paddingVertical: 4,
+  },
+  swipeCounterText: { color: '#6b7280', fontSize: 12, fontWeight: '600' },
 
   // Action buttons
   actions: {

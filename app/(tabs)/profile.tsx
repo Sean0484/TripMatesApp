@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
+import { useSubscription } from '../../context/SubscriptionContext'
 
 const AVATAR_SIZE = 88
 const AVATAR_RADIUS = AVATAR_SIZE / 2
@@ -113,6 +114,7 @@ type Profile = {
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const { language, setLanguage } = useLanguage()
+  const { showUpgradeModal } = useSubscription()
   const router = useRouter()
 
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -460,7 +462,7 @@ export default function ProfileScreen() {
               {!isPaid && (
                 <TouchableOpacity
                   style={styles.unlockBtn}
-                  onPress={() => router.push('/subscription')}
+                  onPress={() => showUpgradeModal('who_liked_you')}
                   activeOpacity={0.8}
                 >
                   <LinearGradient
@@ -500,7 +502,7 @@ export default function ProfileScreen() {
               {!isPaid && (
                 <TouchableOpacity
                   style={styles.unlockBtn}
-                  onPress={() => router.push('/subscription')}
+                  onPress={() => showUpgradeModal('who_visited_you')}
                   activeOpacity={0.8}
                 >
                   <LinearGradient

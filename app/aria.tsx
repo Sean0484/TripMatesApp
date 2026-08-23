@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLanguage } from '../context/LanguageContext'
 import { t } from '../lib/i18n'
+import { useSubscription } from '../context/SubscriptionContext'
 
 const SUGGESTIONS = [
   'Plan a trip to Bali 🌴',
@@ -29,10 +30,13 @@ type Message = {
 let msgId = 0
 const newId = () => String(++msgId)
 
+const FREE_MESSAGE_LIMIT = 5
+
 export default function AriaScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { language } = useLanguage()
+  const { canAccess, showUpgradeModal } = useSubscription()
   const listRef = useRef<FlatList>(null)
 
   const [messages, setMessages] = useState<Message[]>([
@@ -41,6 +45,7 @@ export default function AriaScreen() {
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
   const [suggestionsVisible, setSuggestionsVisible] = useState(true)
+  const [userMessageCount, setUserMessageCount] = useState(0)
 
   useEffect(() => {
     if (messages.length > 1) {
@@ -51,11 +56,18 @@ export default function AriaScreen() {
   const send = async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed || typing) return
+
+    if (!canAccess('unlimited_aria') && userMessageCount >= FREE_MESSAGE_LIMIT) {
+      showUpgradeModal('unlimited_aria')
+      return
+    }
+
     setInput('')
     setSuggestionsVisible(false)
 
     const userMsg: Message = { id: newId(), role: 'user', text: trimmed }
     setMessages(prev => [...prev, userMsg])
+    setUserMessageCount(c => c + 1)
     setTyping(true)
 
     try {
@@ -185,6 +197,15 @@ export default function AriaScreen() {
           }
         />
 
+        {/* Free message counter */}
+        {!canAccess('unlimited_aria') && (
+          <View style={styles.counterBar}>
+            <Text style={styles.counterText}>
+              {userMessageCount}/{FREE_MESSAGE_LIMIT} free messages used
+            </Text>
+          </View>
+        )}
+
         {/* Input bar */}
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
           <TextInput
@@ -279,6 +300,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)',
   },
   chipText: { color: '#C084FC', fontSize: 13, fontWeight: '600' },
+
+  // Free counter
+  counterBar: {
+    paddingHorizontal: 16, paddingVertical: 6,
+    backgroundColor: 'rgba(124,58,237,0.1)',
+    borderTopWidth: 1, borderTopColor: 'rgba(124,58,237,0.2)',
+  },
+  counterText: { color: '#C084FC', fontSize: 12, fontWeight: '600', textAlign: 'center' },
 
   // Input bar
   inputBar: {
