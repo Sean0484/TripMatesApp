@@ -7,23 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 
-type NotifSettings = {
-  notif_new_match: boolean
-  notif_messages: boolean
-  notif_trip_updates: boolean
-  notif_promotional: boolean
-}
-
-const DEFAULTS: NotifSettings = {
-  notif_new_match: true,
-  notif_messages: true,
-  notif_trip_updates: true,
-  notif_promotional: false,
-}
-
 export default function NotificationSettingsScreen() {
   const router = useRouter()
-  const [settings, setSettings] = useState<NotifSettings>(DEFAULTS)
+  const [notifNewMatch, setNotifNewMatch] = useState(true)
+  const [notifMessages, setNotifMessages] = useState(true)
+  const [notifTripUpdates, setNotifTripUpdates] = useState(true)
+  const [notifPromotional, setNotifPromotional] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -37,40 +26,61 @@ export default function NotificationSettingsScreen() {
         .eq('id', user.id)
         .single()
       if (data) {
-        setSettings({
-          notif_new_match: data.notif_new_match ?? true,
-          notif_messages: data.notif_messages ?? true,
-          notif_trip_updates: data.notif_trip_updates ?? true,
-          notif_promotional: data.notif_promotional ?? false,
-        })
+        setNotifNewMatch(data.notif_new_match ?? true)
+        setNotifMessages(data.notif_messages ?? true)
+        setNotifTripUpdates(data.notif_trip_updates ?? true)
+        setNotifPromotional(data.notif_promotional ?? false)
       }
       setLoading(false)
     }
     load()
   }, [])
 
-  const save = async () => {
+  const handleSave = async () => {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
-    const { error } = await supabase.from('users').update(settings).eq('id', user.id)
+
+    const { error } = await supabase.from('users').update({
+      notif_new_match: notifNewMatch,
+      notif_messages: notifMessages,
+      notif_trip_updates: notifTripUpdates,
+      notif_promotional: notifPromotional,
+    }).eq('id', user.id)
+
     setSaving(false)
     if (error) {
-      Alert.alert('Error', 'Could not save settings. Please try again.')
+      Alert.alert('Error', 'Could not save settings')
     } else {
-      Alert.alert('Saved', 'Your notification settings have been updated.')
+      Alert.alert('Saved ✅', 'Your notification settings have been updated')
     }
   }
 
-  const toggle = (key: keyof NotifSettings) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const rows: { key: keyof NotifSettings; label: string; sub: string }[] = [
-    { key: 'notif_new_match', label: 'New match notifications', sub: 'Get notified when someone likes you back' },
-    { key: 'notif_messages', label: 'Message notifications', sub: 'Alerts for new messages in chats and trips' },
-    { key: 'notif_trip_updates', label: 'Trip update notifications', sub: 'Updates on trips you\'ve joined or created' },
-    { key: 'notif_promotional', label: 'Promotional notifications', sub: 'Deals, features and Tripmates news' },
+  const rows = [
+    {
+      label: 'New match notifications',
+      sub: 'Get notified when someone likes you back',
+      value: notifNewMatch,
+      onToggle: () => setNotifNewMatch(v => !v),
+    },
+    {
+      label: 'Message notifications',
+      sub: 'Alerts for new messages in chats and trips',
+      value: notifMessages,
+      onToggle: () => setNotifMessages(v => !v),
+    },
+    {
+      label: 'Trip update notifications',
+      sub: "Updates on trips you've joined or created",
+      value: notifTripUpdates,
+      onToggle: () => setNotifTripUpdates(v => !v),
+    },
+    {
+      label: 'Promotional notifications',
+      sub: 'Deals, features and Tripmates news',
+      value: notifPromotional,
+      onToggle: () => setNotifPromotional(v => !v),
+    },
   ]
 
   return (
@@ -91,14 +101,14 @@ export default function NotificationSettingsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           <View style={styles.card}>
             {rows.map((row, i) => (
-              <View key={row.key} style={[styles.row, i < rows.length - 1 && styles.rowBorder]}>
+              <View key={row.label} style={[styles.row, i < rows.length - 1 && styles.rowBorder]}>
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>{row.label}</Text>
                   <Text style={styles.rowSub}>{row.sub}</Text>
                 </View>
                 <Switch
-                  value={settings[row.key]}
-                  onValueChange={() => toggle(row.key)}
+                  value={row.value}
+                  onValueChange={row.onToggle}
                   trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#1A6FFF' }}
                   thumbColor="#fff"
                   ios_backgroundColor="rgba(255,255,255,0.1)"
@@ -107,7 +117,7 @@ export default function NotificationSettingsScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
             {saving ? (
               <ActivityIndicator color="#fff" />
             ) : (

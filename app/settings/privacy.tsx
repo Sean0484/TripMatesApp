@@ -7,23 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 
-type PrivacySettings = {
-  show_profile_to_everyone: boolean
-  allow_dm_from_strangers: boolean
-  show_location: boolean
-  show_online_status: boolean
-}
-
-const DEFAULTS: PrivacySettings = {
-  show_profile_to_everyone: true,
-  allow_dm_from_strangers: true,
-  show_location: true,
-  show_online_status: true,
-}
-
 export default function PrivacySettingsScreen() {
   const router = useRouter()
-  const [settings, setSettings] = useState<PrivacySettings>(DEFAULTS)
+  const [showProfile, setShowProfile] = useState(true)
+  const [allowDMs, setAllowDMs] = useState(true)
+  const [showLocation, setShowLocation] = useState(true)
+  const [showOnlineStatus, setShowOnlineStatus] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -33,44 +22,65 @@ export default function PrivacySettingsScreen() {
       if (!user) { setLoading(false); return }
       const { data } = await supabase
         .from('users')
-        .select('show_profile_to_everyone, allow_dm_from_strangers, show_location, show_online_status')
+        .select('show_profile, allow_dms, show_location, show_online_status')
         .eq('id', user.id)
         .single()
       if (data) {
-        setSettings({
-          show_profile_to_everyone: data.show_profile_to_everyone ?? true,
-          allow_dm_from_strangers: data.allow_dm_from_strangers ?? true,
-          show_location: data.show_location ?? true,
-          show_online_status: data.show_online_status ?? true,
-        })
+        setShowProfile(data.show_profile ?? true)
+        setAllowDMs(data.allow_dms ?? true)
+        setShowLocation(data.show_location ?? true)
+        setShowOnlineStatus(data.show_online_status ?? true)
       }
       setLoading(false)
     }
     load()
   }, [])
 
-  const save = async () => {
+  const handleSave = async () => {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
-    const { error } = await supabase.from('users').update(settings).eq('id', user.id)
+
+    const { error } = await supabase.from('users').update({
+      show_profile: showProfile,
+      allow_dms: allowDMs,
+      show_location: showLocation,
+      show_online_status: showOnlineStatus,
+    }).eq('id', user.id)
+
     setSaving(false)
     if (error) {
-      Alert.alert('Error', 'Could not save settings. Please try again.')
+      Alert.alert('Error', 'Could not save settings')
     } else {
-      Alert.alert('Saved', 'Your privacy settings have been updated.')
+      Alert.alert('Saved ✅', 'Your privacy settings have been updated')
     }
   }
 
-  const toggle = (key: keyof PrivacySettings) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const rows: { key: keyof PrivacySettings; label: string; sub: string }[] = [
-    { key: 'show_profile_to_everyone', label: 'Show profile to everyone', sub: 'Your profile is visible to all users on Tripmates' },
-    { key: 'allow_dm_from_strangers', label: 'Allow direct messages from strangers', sub: 'Anyone can send you a message, not just matches' },
-    { key: 'show_location', label: 'Show my location', sub: 'Display your city on your profile card' },
-    { key: 'show_online_status', label: 'Show my online status', sub: 'Let others see when you\'re active' },
+  const rows = [
+    {
+      label: 'Show profile to everyone',
+      sub: 'Your profile is visible to all users on Tripmates',
+      value: showProfile,
+      onToggle: () => setShowProfile(v => !v),
+    },
+    {
+      label: 'Allow direct messages from strangers',
+      sub: 'Anyone can send you a message, not just matches',
+      value: allowDMs,
+      onToggle: () => setAllowDMs(v => !v),
+    },
+    {
+      label: 'Show my location',
+      sub: 'Display your city on your profile card',
+      value: showLocation,
+      onToggle: () => setShowLocation(v => !v),
+    },
+    {
+      label: 'Show my online status',
+      sub: "Let others see when you're active",
+      value: showOnlineStatus,
+      onToggle: () => setShowOnlineStatus(v => !v),
+    },
   ]
 
   return (
@@ -91,14 +101,14 @@ export default function PrivacySettingsScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           <View style={styles.card}>
             {rows.map((row, i) => (
-              <View key={row.key} style={[styles.row, i < rows.length - 1 && styles.rowBorder]}>
+              <View key={row.label} style={[styles.row, i < rows.length - 1 && styles.rowBorder]}>
                 <View style={styles.rowContent}>
                   <Text style={styles.rowLabel}>{row.label}</Text>
                   <Text style={styles.rowSub}>{row.sub}</Text>
                 </View>
                 <Switch
-                  value={settings[row.key]}
-                  onValueChange={() => toggle(row.key)}
+                  value={row.value}
+                  onValueChange={row.onToggle}
                   trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#1A6FFF' }}
                   thumbColor="#fff"
                   ios_backgroundColor="rgba(255,255,255,0.1)"
@@ -107,7 +117,7 @@ export default function PrivacySettingsScreen() {
             ))}
           </View>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
             {saving ? (
               <ActivityIndicator color="#fff" />
             ) : (
