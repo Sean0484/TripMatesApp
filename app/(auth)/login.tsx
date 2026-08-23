@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView, Platform,
@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import * as AppleAuthentication from 'expo-apple-authentication'
+import * as LocalAuthentication from 'expo-local-authentication'
+import * as SecureStore from 'expo-secure-store'
 import { supabase } from '../../lib/supabase'
 
 async function navigateAfterLogin(router: ReturnType<typeof useRouter>, userId: string) {
@@ -23,6 +25,8 @@ async function navigateAfterLogin(router: ReturnType<typeof useRouter>, userId: 
   }
 }
 
+type BiometricType = 'faceid' | 'touchid' | 'fingerprint' | null
+
 export default function LoginScreen() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -30,6 +34,65 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [biometricLoading, setBiometricLoading] = useState(false)
+  const [biometricType, setBiometricType] = useState<BiometricType>(null)
+  const [hasSavedCredentials, setHasSavedCredentials] = useState(false)
+
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync()
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+      if (!hasHardware || !isEnrolled) return
+
+      const savedEmail = await SecureStore.getItemAsync('lastUserEmail')
+      const savedPassword = await SecureStore.getItemAsync('lastUserPassword')
+      if (!savedEmail || !savedPassword) return
+
+      setHasSavedCredentials(true)
+
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync()
+      if (Platform.OS === 'ios') {
+        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+          setBiometricType('faceid')
+        } else {
+          setBiometricType('touchid')
+        }
+      } else {
+        setBiometricType('fingerprint')
+      }
+    }
+    checkBiometrics()
+  }, [])
+
+  const handleBiometricLogin = async () => {
+    setBiometricLoading(true)
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Login to Tripmates',
+        fallbackLabel: 'Use password',
+        cancelLabel: 'Cancel',
+      })
+      if (!result.success) return
+
+      const savedEmail = await SecureStore.getItemAsync('lastUserEmail')
+      const savedPassword = await SecureStore.getItemAsync('lastUserPassword')
+      if (!savedEmail || !savedPassword) {
+        Alert.alert('No saved credentials', 'Please log in with your email and password first.')
+        return
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: savedEmail,
+        password: savedPassword,
+      })
+      if (error) { Alert.alert('Login failed', error.message); return }
+      if (data.user) await navigateAfterLogin(router, data.user.id)
+    } catch (e: any) {
+      Alert.alert('Biometric error', e.message)
+    } finally {
+      setBiometricLoading(false)
+    }
+  }
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -40,7 +103,11 @@ export default function LoginScreen() {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     setLoading(false)
     if (error) { Alert.alert('Login failed', error.message); return }
-    if (data.user) await navigateAfterLogin(router, data.user.id)
+    if (data.user) {
+      await SecureStore.setItemAsync('lastUserEmail', email.trim())
+      await SecureStore.setItemAsync('lastUserPassword', password)
+      await navigateAfterLogin(router, data.user.id)
+    }
   }
 
   const handleAppleSignIn = async () => {
@@ -222,6 +289,29 @@ export default function LoginScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
+        {/* Biometric login */}
+        {biometricType && hasSavedCredentials && (
+          <TouchableOpacity
+            style={styles.biometricBtn}
+            onPress={handleBiometricLogin}
+            disabled={biometricLoading}
+            activeOpacity={0.8}
+          >
+            {biometricLoading ? (
+              <ActivityIndicator color="#1A6FFF" size="small" />
+            ) : (
+              <>
+                <Text style={styles.biometricIcon}>
+                  {biometricType === 'faceid' ? '🔐' : '👆'}
+                </Text>
+                <Text style={styles.biometricText}>
+                  {biometricType === 'faceid' ? 'Sign in with Face ID' : 'Sign in with Touch ID'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
         {/* Register link */}
         <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={styles.registerLink}>
           <Text style={styles.registerText}>
@@ -313,6 +403,17 @@ const styles = StyleSheet.create({
   },
   loginButton: { paddingVertical: 17, alignItems: 'center', justifyContent: 'center' },
   loginText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  // Biometric
+  biometricBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderWidth: 1, borderColor: 'rgba(26,111,255,0.35)',
+    borderRadius: 14, paddingVertical: 15,
+    backgroundColor: 'rgba(26,111,255,0.08)',
+    marginBottom: 20,
+  },
+  biometricIcon: { fontSize: 22 },
+  biometricText: { color: '#1A6FFF', fontSize: 15, fontWeight: '600' },
 
   registerLink: { alignItems: 'center' },
   registerText: { color: '#6b7280', fontSize: 14 },

@@ -23,7 +23,8 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification"],
+        "NSFaceIDUsageDescription": "Tripmates uses Face ID to securely log you in."
       }
     },
     "android": {
@@ -46,7 +47,8 @@
       "expo-apple-authentication",
       "@react-native-google-signin/google-signin",
       "expo-location",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-local-authentication"
     ],
     "extra": {
       "router": {},
