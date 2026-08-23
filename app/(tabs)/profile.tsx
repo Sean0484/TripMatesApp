@@ -86,11 +86,10 @@ const DESTINATIONS = [
 ]
 
 const SETTINGS_ROWS = [
-  { icon: '🔒', label: 'Privacy Settings',      sub: 'Control who sees your profile' },
-  { icon: '🔔', label: 'Notification Settings', sub: 'Manage alerts and push notifications' },
-  { icon: '🛡️', label: 'Data & GDPR',           sub: 'Your data rights and privacy' },
-  { icon: '❓', label: 'Help & Support',         sub: 'FAQs, contact and bug reports' },
-  { icon: '🌍', label: 'Language',               sub: 'English' },
+  { icon: '🔒', label: 'Privacy Settings',      sub: 'Control who sees your profile',      route: '/settings/privacy' },
+  { icon: '🔔', label: 'Notification Settings', sub: 'Manage alerts and push notifications', route: '/settings/notifications' },
+  { icon: '🛡️', label: 'Data & GDPR',           sub: 'Your data rights and privacy',        route: '/settings/gdpr' },
+  { icon: '❓', label: 'Help & Support',         sub: 'FAQs, contact and bug reports',       route: '/settings/support' },
 ]
 
 type Dest = { name: string; country: string; flag: string }
@@ -254,12 +253,8 @@ export default function ProfileScreen() {
     await supabase.from('users').update({ wishlist: newList }).eq('id', profile.id)
   }
 
-  const handleSettingsRow = (label: string) => {
-    if (label === 'Help & Support') {
-      router.push('/settings')
-    } else {
-      Alert.alert(label, 'This feature is coming soon.', [{ text: 'OK' }])
-    }
+  const handleSettingsRow = (route: string) => {
+    router.push(route as any)
   }
 
   if (loading) {
@@ -605,7 +600,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                   key={row.label}
                   style={[styles.settingsItem, i < SETTINGS_ROWS.length - 1 && styles.settingsItemBorder]}
-                  onPress={() => handleSettingsRow(row.label)}
+                  onPress={() => handleSettingsRow(row.route)}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.settingsItemIcon}>{row.icon}</Text>

@@ -92,7 +92,6 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backIcon}>‹</Text>
@@ -109,10 +108,7 @@ export default function SettingsScreen() {
               {section.rows.map((row, i) => (
                 <TouchableOpacity
                   key={row.label}
-                  style={[
-                    styles.row,
-                    i < section.rows.length - 1 && styles.rowBorder,
-                  ]}
+                  style={[styles.row, i < section.rows.length - 1 && styles.rowBorder]}
                   onPress={row.onPress}
                   activeOpacity={0.7}
                 >
@@ -130,7 +126,6 @@ export default function SettingsScreen() {
           </View>
         ))}
 
-        {/* App version */}
         <View style={styles.versionWrap}>
           <Text style={styles.appName}>Tripmates</Text>
           <Text style={styles.version}>Version {VERSION}</Text>
@@ -154,12 +149,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   backIcon: { color: '#fff', fontSize: 28, lineHeight: 34, fontWeight: '300' },
   headerTitle: { color: '#fff', fontSize: 17, fontWeight: '700' },
@@ -168,32 +160,15 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 24 },
   sectionTitle: {
-    color: '#6b7280',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    color: '#6b7280', fontSize: 11, fontWeight: '700',
+    letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', overflow: 'hidden',
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   rowIcon: { fontSize: 20, width: 28, textAlign: 'center' },
   rowContent: { flex: 1 },
   rowLabel: { color: '#fff', fontSize: 15, fontWeight: '500' },
