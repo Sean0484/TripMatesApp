@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
+import { useLanguage } from '../../context/LanguageContext'
 
 const AVATAR_SIZE = 88
 const AVATAR_RADIUS = AVATAR_SIZE / 2
@@ -111,6 +112,7 @@ type Profile = {
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
+  const { language, setLanguage } = useLanguage()
   const router = useRouter()
 
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -615,6 +617,33 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Language Selector */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🌐 Language / Sprog</Text>
+            <View style={styles.card}>
+              <View style={styles.languageRow}>
+                <TouchableOpacity
+                  style={[styles.langBtn, language === 'en' && styles.langBtnActive]}
+                  onPress={() => setLanguage('en')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.langFlag}>🇬🇧</Text>
+                  <Text style={[styles.langLabel, language === 'en' && styles.langLabelActive]}>English</Text>
+                  {language === 'en' && <Text style={styles.langCheck}>✓</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.langBtn, language === 'da' && styles.langBtnActive]}
+                  onPress={() => setLanguage('da')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.langFlag}>🇩🇰</Text>
+                  <Text style={[styles.langLabel, language === 'da' && styles.langLabelActive]}>Dansk</Text>
+                  {language === 'da' && <Text style={styles.langCheck}>✓</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
           {/* Log Out */}
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogOut} activeOpacity={0.8}>
             <Text style={styles.logoutText}>Log Out</Text>
@@ -878,6 +907,23 @@ const styles = StyleSheet.create({
   settingsChevron: { color: '#4b5563', fontSize: 20 },
 
   // Logout
+  // Language selector
+  languageRow: { flexDirection: 'row', gap: 10, padding: 4 },
+  langBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  langBtnActive: {
+    borderColor: '#1A6FFF',
+    backgroundColor: 'rgba(26,111,255,0.12)',
+  },
+  langFlag: { fontSize: 20 },
+  langLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: '#9ca3af' },
+  langLabelActive: { color: '#1A6FFF' },
+  langCheck: { color: '#1A6FFF', fontSize: 14, fontWeight: '700' },
+
   logoutBtn: {
     backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 14,
     borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)',

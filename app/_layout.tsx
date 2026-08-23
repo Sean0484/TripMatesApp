@@ -5,6 +5,7 @@ import { Stack, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { supabase } from '../lib/supabase'
 import { registerForPushNotifications } from '../lib/notifications'
+import { LanguageProvider } from '../context/LanguageContext'
 
 export default function RootLayout() {
   const [initialized, setInitialized] = useState(false)
@@ -77,7 +78,9 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }} />
+    <LanguageProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </LanguageProvider>
   )
 }
 
