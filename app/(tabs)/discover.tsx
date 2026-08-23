@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   Dimensions, ActivityIndicator, FlatList, TextInput,
@@ -1223,7 +1223,7 @@ export default function DiscoverScreen() {
                             onPress={() => {
                               if (!isDragging.current) setProfileUser(currentUser)
                             }}
-                            style={StyleSheet.absoluteFillObject}
+                            style={StyleSheet.absoluteFill}
                           />
                         </Animated.View>
                       </GestureDetector>
