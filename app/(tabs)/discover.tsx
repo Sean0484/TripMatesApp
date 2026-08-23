@@ -1020,21 +1020,51 @@ const pm = StyleSheet.create({
 
 type TopTab = 'travellers' | 'trips'
 
-const DAILY_SWIPE_LIMIT = 10
-const SWIPE_STORAGE_KEY = 'discover_swipes_today'
-const SWIPE_DATE_KEY = 'discover_swipes_date'
+const LIKE_LIMITS: Record<string, number> = {
+  free: 25,
+  explorer_plus: 50,
+  voyager: Infinity,
+  premium: Infinity,
+}
+const SUPERLIKE_LIMITS: Record<string, number> = {
+  free: 0,
+  explorer_plus: 5,
+  voyager: 10,
+  premium: 15,
+}
+const LIKES_KEY = 'daily_likes'
+const LIKES_DATE_KEY = 'daily_likes_date'
+const SUPERLIKES_KEY = 'daily_superlikes'
+const SUPERLIKES_DATE_KEY = 'daily_superlikes_date'
+
+async function loadDailyCount(countKey: string, dateKey: string): Promise<number> {
+  const today = new Date().toDateString()
+  const saved = await AsyncStorage.getItem(dateKey)
+  if (saved !== today) {
+    await AsyncStorage.setItem(dateKey, today)
+    await AsyncStorage.setItem(countKey, '0')
+    return 0
+  }
+  return parseInt((await AsyncStorage.getItem(countKey)) ?? '0', 10)
+}
+
+async function incrementDailyCount(countKey: string): Promise<void> {
+  const current = parseInt((await AsyncStorage.getItem(countKey)) ?? '0', 10)
+  await AsyncStorage.setItem(countKey, String(current + 1))
+}
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets()
   const { language } = useLanguage()
-  const { canAccess, showUpgradeModal } = useSubscription()
+  const { tier, showUpgradeModal } = useSubscription()
   const [topTab, setTopTab] = useState<TopTab>('travellers')
 
   // Travellers state
   const [users, setUsers] = useState<TravelUser[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [swipesToday, setSwipesToday] = useState(0)
+  const [likesToday, setLikesToday] = useState(0)
+  const [superLikesToday, setSuperLikesToday] = useState(0)
 
   // Trips state
   const [userId, setUserId] = useState<string | null>(null)
@@ -1048,19 +1078,13 @@ export default function DiscoverScreen() {
   const ty = useSharedValue(0)
 
   useEffect(() => {
-    const loadSwipeCount = async () => {
-      const today = new Date().toDateString()
-      const savedDate = await AsyncStorage.getItem(SWIPE_DATE_KEY)
-      if (savedDate !== today) {
-        await AsyncStorage.setItem(SWIPE_DATE_KEY, today)
-        await AsyncStorage.setItem(SWIPE_STORAGE_KEY, '0')
-        setSwipesToday(0)
-      } else {
-        const count = await AsyncStorage.getItem(SWIPE_STORAGE_KEY)
-        setSwipesToday(count ? parseInt(count, 10) : 0)
-      }
-    }
-    loadSwipeCount()
+    Promise.all([
+      loadDailyCount(LIKES_KEY, LIKES_DATE_KEY),
+      loadDailyCount(SUPERLIKES_KEY, SUPERLIKES_DATE_KEY),
+    ]).then(([likes, superLikes]) => {
+      setLikesToday(likes)
+      setSuperLikesToday(superLikes)
+    })
   }, [])
 
   useEffect(() => {
@@ -1082,20 +1106,39 @@ export default function DiscoverScreen() {
   }, [])
 
   const handleSwipe = useCallback((action: 'like' | 'pass' | 'super_like') => {
-    if (!canAccess('unlimited_requests') && swipesToday >= DAILY_SWIPE_LIMIT) {
-      tx.value = withSpring(0, { damping: 15, stiffness: 120 })
-      ty.value = withSpring(0, { damping: 15, stiffness: 120 })
-      showUpgradeModal('unlimited_requests')
-      return
+    const currentTier = tier ?? 'free'
+
+    if (action === 'like') {
+      const limit = LIKE_LIMITS[currentTier] ?? 25
+      if (likesToday >= limit) {
+        tx.value = withSpring(0, { damping: 15, stiffness: 120 })
+        ty.value = withSpring(0, { damping: 15, stiffness: 120 })
+        showUpgradeModal('unlimited_likes')
+        return
+      }
+      setLikesToday(prev => prev + 1)
+      incrementDailyCount(LIKES_KEY)
+    } else if (action === 'super_like') {
+      const limit = SUPERLIKE_LIMITS[currentTier] ?? 0
+      if (limit === 0) {
+        tx.value = withSpring(0, { damping: 15, stiffness: 120 })
+        ty.value = withSpring(0, { damping: 15, stiffness: 120 })
+        showUpgradeModal('super_likes')
+        return
+      }
+      if (superLikesToday >= limit) {
+        tx.value = withSpring(0, { damping: 15, stiffness: 120 })
+        ty.value = withSpring(0, { damping: 15, stiffness: 120 })
+        showUpgradeModal('more_superlikes')
+        return
+      }
+      setSuperLikesToday(prev => prev + 1)
+      incrementDailyCount(SUPERLIKES_KEY)
     }
+
     tx.value = 0; ty.value = 0
     setCurrentIndex(i => i + 1)
-    setSwipesToday(prev => {
-      const next = prev + 1
-      AsyncStorage.setItem(SWIPE_STORAGE_KEY, String(next))
-      return next
-    })
-  }, [tx, ty, canAccess, swipesToday, showUpgradeModal])
+  }, [tx, ty, tier, likesToday, superLikesToday, showUpgradeModal])
 
   const swipeRight = () => {
     tx.value = withTiming(W + 150, { duration: 350 }, (done) => {
@@ -1269,26 +1312,17 @@ export default function DiscoverScreen() {
                 </View>
 
                 {currentUser && (
-                  <>
-                    {!canAccess('unlimited_requests') && (
-                      <View style={st.swipeCounter}>
-                        <Text style={st.swipeCounterText}>
-                          {Math.max(0, DAILY_SWIPE_LIMIT - swipesToday)} swipes left today
-                        </Text>
-                      </View>
-                    )}
-                    <View style={st.actions}>
-                      <TouchableOpacity style={[st.actionBtn, st.passBtn]} onPress={swipeLeft} activeOpacity={0.8}>
-                        <Text style={st.passIcon}>✕</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[st.actionBtn, st.superBtn]} onPress={swipeUp} activeOpacity={0.8}>
-                        <Text style={st.superIcon}>★</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[st.actionBtn, st.likeBtn]} onPress={swipeRight} activeOpacity={0.8}>
-                        <Text style={st.likeIcon}>♥</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
+                  <View style={st.actions}>
+                    <TouchableOpacity style={[st.actionBtn, st.passBtn]} onPress={swipeLeft} activeOpacity={0.8}>
+                      <Text style={st.passIcon}>✕</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[st.actionBtn, st.superBtn]} onPress={swipeUp} activeOpacity={0.8}>
+                      <Text style={st.superIcon}>★</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[st.actionBtn, st.likeBtn]} onPress={swipeRight} activeOpacity={0.8}>
+                      <Text style={st.likeIcon}>♥</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </>
             )}
@@ -1445,12 +1479,6 @@ const st = StyleSheet.create({
     borderWidth: 3, borderColor: '#3b82f6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
   },
   superLabel: { color: '#3b82f6', fontSize: 26, fontWeight: '900', letterSpacing: 2 },
-
-  // Swipe counter
-  swipeCounter: {
-    alignItems: 'center', paddingVertical: 4,
-  },
-  swipeCounterText: { color: '#6b7280', fontSize: 12, fontWeight: '600' },
 
   // Action buttons
   actions: {
