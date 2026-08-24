@@ -67,8 +67,11 @@ export default function BioScreen() {
   const [showCountryModal, setShowCountryModal] = useState(false)
   const [budget, setBudget] = useState<Budget | null>(null)
   const [bio, setBio] = useState('')
+  const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [cachedVibes, setCachedVibes] = useState<string[]>([])
+  const [cachedPersonality, setCachedPersonality] = useState('')
 
   const filteredCountries = COUNTRIES.filter(c =>
     c.toLowerCase().includes(countrySearch.toLowerCase())
@@ -94,40 +97,66 @@ export default function BioScreen() {
     router.replace('/(tabs)/discover')
   }
 
-  const generateBio = async () => {
+  const handleGenerateBio = async () => {
     setAiLoading(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
 
-      const { data: profile } = await supabase
-        .from('users')
-        .select('travel_vibes, personality_type')
-        .eq('id', user.id)
-        .single()
+    let selectedVibes = cachedVibes
+    let selectedPersonality = cachedPersonality
 
-      const vibes = Array.isArray(profile?.travel_vibes)
-        ? profile.travel_vibes.join(', ')
-        : 'adventure'
-      const personality = profile?.personality_type?.replace('_', ' ') ?? 'spontaneous'
-
-      const response = await fetch('https://tripmatess.com/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `Generate a short unique travel bio (max 100 characters) for someone who loves ${vibes} and is a ${personality} traveller. Make it fun and different every time. Random seed: ${Math.random()}`,
-        }),
-      })
-
-      const json = await response.json()
-      const generated: string =
-        json.response ?? json.message ?? json.text ?? json.content ?? json.reply ?? ''
-      if (generated) setBio(generated.slice(0, 150))
-      else Alert.alert('No response', 'Could not generate bio. Try again.')
-    } catch {
-      Alert.alert('Error', 'Could not generate bio. Check your connection.')
+    if (!selectedVibes.length || !selectedPersonality) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('travel_vibes, personality_tags')
+            .eq('id', user.id)
+            .single()
+          if (profile) {
+            selectedVibes = Array.isArray(profile.travel_vibes) ? profile.travel_vibes : []
+            selectedPersonality = Array.isArray(profile.personality_tags)
+              ? (profile.personality_tags[0] ?? '')
+              : (profile.personality_tags ?? '')
+            setCachedVibes(selectedVibes)
+            setCachedPersonality(selectedPersonality)
+          }
+        }
+      } catch {}
     }
-    setAiLoading(false)
+
+    const randomStyle = [
+      'adventurous and bold',
+      'funny and lighthearted',
+      'mysterious and intriguing',
+      'warm and friendly',
+      'passionate and driven',
+    ][Math.floor(Math.random() * 5)]
+
+    const uniqueSeed = Math.random().toString(36).substring(7)
+    const timestamp = Date.now()
+
+    const vibesStr = selectedVibes.length ? selectedVibes.join(', ') : 'adventure'
+    const personalityStr = selectedPersonality.replace('_', ' ') || 'spontaneous'
+
+    const prompt = `Generate a unique travel bio (max 120 characters) for someone who loves ${vibesStr} and is a ${personalityStr} traveller. Writing style: ${randomStyle}. ${notes ? `Personal notes: ${notes}.` : ''} Make it creative and different every time. Reference: ${uniqueSeed}-${timestamp}.`
+
+    try {
+      const response = await fetch('https://www.tripmatess.com/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ message: prompt }),
+      })
+      const data = await response.json()
+      const generatedBio = data.reply || data.message || data.content?.[0]?.text || ''
+      setBio(generatedBio.substring(0, 150))
+    } catch (err) {
+      Alert.alert('Error', 'Could not generate bio. Please try again.')
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   return (
@@ -185,6 +214,20 @@ export default function BioScreen() {
           </View>
         </View>
 
+        {/* Notes for AI */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Help AI write your bio (optional)</Text>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            placeholder="e.g. 23 years old, spontaneous, love hiking, been to 15 countries..."
+            placeholderTextColor="#4b5563"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            textAlignVertical="top"
+          />
+        </View>
+
         {/* Bio */}
         <View style={styles.fieldGroup}>
           <View style={styles.labelRow}>
@@ -196,7 +239,7 @@ export default function BioScreen() {
             placeholder="Share your travel style, favourite destinations, or what you're looking for..."
             placeholderTextColor="#4b5563"
             value={bio}
-            onChangeText={t => setBio(t.slice(0, 150))}
+            onChangeText={v => setBio(v.slice(0, 150))}
             multiline
             textAlignVertical="top"
           />
@@ -204,7 +247,7 @@ export default function BioScreen() {
           {/* AI Generate button */}
           <TouchableOpacity
             style={styles.aiBtn}
-            onPress={generateBio}
+            onPress={handleGenerateBio}
             disabled={aiLoading}
             activeOpacity={0.8}
           >
@@ -302,6 +345,7 @@ const styles = StyleSheet.create({
   inputText: { fontSize: 15, color: '#fff', flex: 1 },
   inputPlaceholder: { fontSize: 15, color: '#4b5563', flex: 1 },
   chevron: { color: '#4b5563', fontSize: 20, fontWeight: '300' },
+  notesInput: { height: 72, paddingTop: 14, flexDirection: undefined as any },
   bioInput: { height: 120, paddingTop: 14, flexDirection: undefined as any },
   aiBtn: {
     marginTop: 10,
