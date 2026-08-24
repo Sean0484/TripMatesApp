@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../../lib/supabase'
+import * as SecureStore from 'expo-secure-store'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
 const SLOT_SIZE = Math.floor((SCREEN_WIDTH - 48 - 12) / 2)
@@ -32,6 +33,21 @@ export default function PhotoScreen() {
   const [photos, setPhotos] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [attempted, setAttempted] = useState(false)
+
+  const signInIfNeeded = async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.id) return session.user.id
+
+    const email = await SecureStore.getItemAsync('pending_email')
+    const password = await SecureStore.getItemAsync('pending_password')
+
+    if (email && password) {
+      const { data } = await supabase.auth.signInWithPassword({ email, password })
+      if (data?.user?.id) return data.user.id
+    }
+
+    return null
+  }
 
   const requestPermission = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -87,21 +103,7 @@ export default function PhotoScreen() {
     }
     setLoading(true)
     try {
-      let userId: string | null = null
-
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.id) userId = session.user.id
-
-      if (!userId) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.id) userId = user.id
-      }
-
-      if (!userId) {
-        const { data: { session: refreshed } } = await supabase.auth.refreshSession()
-        if (refreshed?.user?.id) userId = refreshed.user.id
-      }
-
+      const userId = await signInIfNeeded()
       if (!userId) {
         Alert.alert('Error', 'Could not authenticate. Please try logging in again.')
         setLoading(false)

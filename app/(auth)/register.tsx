@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
+import * as SecureStore from 'expo-secure-store'
 
 function isAtLeast18(date: Date): boolean {
   const today = new Date()
@@ -64,6 +65,9 @@ export default function RegisterScreen() {
       setLoading(false)
       return
     }
+
+    await SecureStore.setItemAsync('pending_email', email.trim())
+    await SecureStore.setItemAsync('pending_password', password)
 
     setLoading(false)
     router.replace('/(onboarding)/vibes')

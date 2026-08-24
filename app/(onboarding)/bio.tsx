@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar'
 import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
+import * as SecureStore from 'expo-secure-store'
 
 const BUDGETS = ['Budget', 'Mid-range', 'Luxury'] as const
 type Budget = typeof BUDGETS[number]
@@ -94,6 +95,8 @@ export default function BioScreen() {
       return
     }
     setLoading(false)
+    await SecureStore.deleteItemAsync('pending_email')
+    await SecureStore.deleteItemAsync('pending_password')
     router.replace('/(tabs)/discover')
   }
 
