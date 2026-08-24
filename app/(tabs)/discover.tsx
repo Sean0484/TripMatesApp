@@ -1066,6 +1066,10 @@ export default function DiscoverScreen() {
   const { tier, showUpgradeModal } = useSubscription()
   const [topTab, setTopTab] = useState<TopTab>('travellers')
 
+  // Email banner
+  const [showBanner, setShowBanner] = useState(false)
+  const [bannerEmail, setBannerEmail] = useState('')
+
   // Travellers state
   const [users, setUsers] = useState<TravelUser[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -1100,6 +1104,12 @@ export default function DiscoverScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
       setUserId(user.id)
+
+      const isEmailConfirmed = !!user.email_confirmed_at
+      if (!isEmailConfirmed && user.email) {
+        setBannerEmail(user.email)
+        setShowBanner(true)
+      }
 
       const [meRes, othersRes] = await Promise.all([
         supabase
@@ -1233,9 +1243,33 @@ export default function DiscoverScreen() {
   const currentUser = users[currentIndex]
   const nextUser = users[currentIndex + 1]
 
+  const handleResendEmail = async () => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email: bannerEmail })
+    if (error) {
+      Alert.alert('Error', error.message)
+    } else {
+      Alert.alert('Email sent!', 'Check your inbox.')
+    }
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A1628' }}>
       <View style={[st.container, { paddingTop: insets.top }]}>
+
+        {/* Email confirmation banner */}
+        {showBanner && (
+          <View style={st.emailBanner}>
+            <Text style={st.emailBannerText}>📧 Please confirm your email — check your inbox</Text>
+            <View style={st.emailBannerActions}>
+              <TouchableOpacity onPress={handleResendEmail} activeOpacity={0.75} style={st.emailBannerResend}>
+                <Text style={st.emailBannerResendText}>Resend</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowBanner(false)} activeOpacity={0.75} style={st.emailBannerDismiss}>
+                <Text style={st.emailBannerDismissText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Top bar */}
         <View style={st.topBar}>
@@ -1416,6 +1450,22 @@ export default function DiscoverScreen() {
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A1628' },
   center: { flex: 1, backgroundColor: '#0A1628', alignItems: 'center', justifyContent: 'center' },
+
+  // Email confirmation banner
+  emailBanner: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 14, paddingVertical: 10,
+    gap: 6,
+  },
+  emailBannerText: { color: '#1a1a2e', fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  emailBannerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emailBannerResend: {
+    backgroundColor: 'rgba(0,0,0,0.15)', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 5,
+  },
+  emailBannerResendText: { color: '#1a1a2e', fontSize: 13, fontWeight: '700' },
+  emailBannerDismiss: { marginLeft: 'auto' as any, padding: 4 },
+  emailBannerDismissText: { color: '#1a1a2e', fontSize: 15, fontWeight: '700' },
 
   // Top bar
   topBar: {
