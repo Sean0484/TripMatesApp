@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Modal, TextInput, Alert, ActivityIndicator, Platform,
-  KeyboardAvoidingView, Image, FlatList, Keyboard,
+  KeyboardAvoidingView, Image, FlatList, Keyboard, Dimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -94,11 +94,17 @@ const SETTINGS_ROWS = [
 
 type Dest = { name: string; country: string; flag: string }
 
+const SCREEN_WIDTH = Dimensions.get('window').width
+const PHOTO_SLOT_SIZE = Math.floor((SCREEN_WIDTH - 40 - 48 - 12) / 2)
+const MAX_PHOTOS = 6
+const MIN_PHOTOS = 2
+
 type Profile = {
   id: string
   first_name: string | null
   last_name: string | null
   avatar_url: string | null
+  avatar_urls: string[] | null
   travel_vibes: string[] | null
   personality_tags: string[] | null
   city: string | null
@@ -121,6 +127,10 @@ export default function ProfileScreen() {
   const [rating, setRating] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [photoModalVisible, setPhotoModalVisible] = useState(false)
+  const [editPhotos, setEditPhotos] = useState<string[]>([])
+  const [photoSaving, setPhotoSaving] = useState(false)
+  const [photoAttempted, setPhotoAttempted] = useState(false)
   const [wishlist, setWishlist] = useState<string[]>([])
 
   const [editVisible, setEditVisible] = useState(false)
@@ -161,7 +171,13 @@ export default function ProfileScreen() {
     setLoading(false)
   }
 
-  const handlePickPhoto = async () => {
+  const openPhotoModal = () => {
+    setEditPhotos(profile?.avatar_urls ?? (profile?.avatar_url ? [profile.avatar_url] : []))
+    setPhotoAttempted(false)
+    setPhotoModalVisible(true)
+  }
+
+  const pickPhotoForSlot = async (replaceIndex?: number) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (!perm.granted) {
       Alert.alert('Permission needed', 'Please allow access to your photo library.')
@@ -173,26 +189,70 @@ export default function ProfileScreen() {
       aspect: [1, 1],
       quality: 0.8,
     })
-    if (result.canceled || !profile) return
+    if (result.canceled || !result.assets[0]) return
+    const uri = result.assets[0].uri
+    setEditPhotos(prev => {
+      const next = [...prev]
+      if (replaceIndex !== undefined && replaceIndex < next.length) {
+        next[replaceIndex] = uri
+      } else {
+        next.push(uri)
+      }
+      return next
+    })
+  }
 
-    setUploading(true)
+  const handlePhotoSlotPress = (index: number) => {
+    if (index < editPhotos.length) {
+      Alert.alert('Photo', undefined, [
+        { text: 'Replace', onPress: () => pickPhotoForSlot(index) },
+        { text: 'Remove', style: 'destructive', onPress: () => setEditPhotos(prev => prev.filter((_, i) => i !== index)) },
+        { text: 'Cancel', style: 'cancel' },
+      ])
+    } else if (editPhotos.length < MAX_PHOTOS) {
+      pickPhotoForSlot()
+    }
+  }
+
+  const savePhotos = async () => {
+    setPhotoAttempted(true)
+    if (editPhotos.length < MIN_PHOTOS) {
+      Alert.alert('Add more photos', `Please add at least ${MIN_PHOTOS} photos.`)
+      return
+    }
+    if (!profile) return
+    setPhotoSaving(true)
     try {
-      const uri = result.assets[0].uri
-      const ext = uri.split('.').pop() ?? 'jpg'
-      const fileName = `${profile.id}/avatar.${ext}`
-      const resp = await fetch(uri)
-      const blob = await resp.blob()
-      const { error: uploadErr } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, blob, { upsert: true, contentType: `image/${ext}` })
-      if (uploadErr) throw uploadErr
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName)
-      await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', profile.id)
-      setProfile(p => p ? { ...p, avatar_url: publicUrl } : p)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+      const userId = session.user.id
+      const urls: string[] = []
+      for (let i = 0; i < editPhotos.length; i++) {
+        const photo = editPhotos[i]
+        if (photo.startsWith('http')) {
+          urls.push(photo)
+        } else {
+          const response = await fetch(photo)
+          const blob = await response.blob()
+          const path = `${userId}/avatar_${i + 1}.jpg`
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+          if (uploadError) throw uploadError
+          const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+          urls.push(publicUrl)
+        }
+      }
+      await supabase.from('users').update({
+        avatar_url: urls[0],
+        avatar_urls: urls,
+      }).eq('id', userId)
+      setProfile(p => p ? { ...p, avatar_url: urls[0], avatar_urls: urls } : p)
+      setPhotoModalVisible(false)
     } catch (e: any) {
-      Alert.alert('Upload failed', e.message)
+      Alert.alert('Upload failed', e.message ?? 'Could not upload photos.')
     } finally {
-      setUploading(false)
+      setPhotoSaving(false)
     }
   }
 
@@ -313,11 +373,8 @@ export default function ProfileScreen() {
                 </LinearGradient>
               )}
             </View>
-            <TouchableOpacity style={styles.cameraBtn} onPress={handlePickPhoto} disabled={uploading}>
-              {uploading
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.cameraIcon}>📷</Text>
-              }
+            <TouchableOpacity style={styles.cameraBtn} onPress={openPhotoModal}>
+              <Text style={styles.cameraIcon}>📷</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -648,6 +705,65 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
+      {/* ── Photo Modal ── */}
+      <Modal visible={photoModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { maxHeight: '85%' }]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Edit Photos</Text>
+            <Text style={styles.photoModalSub}>Min 2 · Max 6 photos</Text>
+            <View style={styles.photoGrid}>
+              {Array.from({ length: MAX_PHOTOS }).map((_, index) => {
+                const hasPhoto = index < editPhotos.length
+                const isRequired = index < MIN_PHOTOS
+                const showRequired = photoAttempted && !hasPhoto && isRequired
+                const isDisabled = !hasPhoto && index > editPhotos.length
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.photoSlot, showRequired ? styles.photoSlotRequired : styles.photoSlotEmpty]}
+                    onPress={() => handlePhotoSlotPress(index)}
+                    activeOpacity={0.7}
+                    disabled={isDisabled}
+                  >
+                    {hasPhoto ? (
+                      <>
+                        <Image source={{ uri: editPhotos[index] }} style={styles.photoSlotImage} />
+                        <View style={styles.photoSlotBadge}>
+                          <Text style={styles.photoSlotBadgeText}>{index + 1}</Text>
+                        </View>
+                        <View style={styles.photoSlotX}>
+                          <Text style={styles.photoSlotXText}>✕</Text>
+                        </View>
+                      </>
+                    ) : (
+                      <View style={[styles.photoSlotPlaceholder, isDisabled && { opacity: 0.3 }]}>
+                        <Text style={styles.photoSlotPlus}>+</Text>
+                        {isRequired && (
+                          <Text style={[styles.photoSlotReqLabel, showRequired && { color: '#ef4444' }]}>
+                            Required
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+            <TouchableOpacity
+              style={[styles.saveBtn, photoSaving && { opacity: 0.6 }]}
+              onPress={savePhotos}
+              disabled={photoSaving}
+            >
+              {photoSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Photos</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setPhotoModalVisible(false)}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Edit Modal ── */}
       <Modal visible={editVisible} animationType="slide" transparent>
         <KeyboardAvoidingView
@@ -939,6 +1055,32 @@ const styles = StyleSheet.create({
     alignSelf: 'center', marginBottom: 20,
   },
   modalTitle: { color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 4 },
+
+  // Photo modal
+  photoModalSub: { color: '#6b7280', fontSize: 13, marginBottom: 20 },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 4 },
+  photoSlot: { width: PHOTO_SLOT_SIZE, height: PHOTO_SLOT_SIZE, borderRadius: 14, overflow: 'hidden', borderWidth: 2 },
+  photoSlotEmpty: { borderColor: 'rgba(255,255,255,0.15)', borderStyle: 'dashed' },
+  photoSlotRequired: { borderColor: '#ef4444', borderStyle: 'dashed' },
+  photoSlotImage: { width: '100%', height: '100%' },
+  photoSlotPlaceholder: {
+    flex: 1, backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center', justifyContent: 'center', gap: 4,
+  },
+  photoSlotPlus: { color: '#4b5563', fontSize: 24, lineHeight: 28 },
+  photoSlotReqLabel: { color: '#6b7280', fontSize: 10, fontWeight: '600' },
+  photoSlotBadge: {
+    position: 'absolute', top: 6, left: 6,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#1A6FFF', alignItems: 'center', justifyContent: 'center',
+  },
+  photoSlotBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  photoSlotX: {
+    position: 'absolute', top: 6, right: 6,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+  },
+  photoSlotXText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   nameFields: { flexDirection: 'row', marginBottom: 0 },
   fieldLabel: {
     color: '#9ca3af', fontSize: 11, fontWeight: '700', letterSpacing: 0.8,
