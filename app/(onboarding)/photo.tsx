@@ -87,13 +87,26 @@ export default function PhotoScreen() {
     }
     setLoading(true)
     try {
+      let userId: string | null = null
+
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        Alert.alert('Error', 'Please log in again.')
+      if (session?.user?.id) userId = session.user.id
+
+      if (!userId) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.id) userId = user.id
+      }
+
+      if (!userId) {
+        const { data: { session: refreshed } } = await supabase.auth.refreshSession()
+        if (refreshed?.user?.id) userId = refreshed.user.id
+      }
+
+      if (!userId) {
+        Alert.alert('Error', 'Could not authenticate. Please try logging in again.')
         setLoading(false)
         return
       }
-      const userId = session.user.id
       const urls: string[] = []
       for (let i = 0; i < photos.length; i++) {
         const response = await fetch(photos[i])
@@ -189,9 +202,7 @@ export default function PhotoScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.btnText}>
-                {photos.length >= MIN_PHOTOS ? 'Continue →' : 'Skip for now'}
-              </Text>
+              <Text style={styles.btnText}>Continue →</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
