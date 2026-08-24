@@ -17,6 +17,7 @@ import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
 import { useSubscription } from '../../context/SubscriptionContext'
+import { calculateMatchScore } from '../../lib/matchScore'
 
 const { width: W, height: H } = Dimensions.get('window')
 const CARD_W = W - 32
@@ -86,7 +87,17 @@ type TravelUser = {
   bio: string | null
   subscription_tier: string | null
   date_of_birth: string | null
+  verification_level: string | null
   match: number
+}
+
+type CurrentUserProfile = {
+  travel_vibes: string[] | null
+  personality_tags: string | string[] | null
+  verification_level: string | null
+  avatar_url: string | null
+  bio: string | null
+  city: string | null
 }
 
 type Trip = {
@@ -106,10 +117,6 @@ type Trip = {
 type MyTab = 'upcoming' | 'saved' | 'requests'
 type MainTab = 'browse' | 'mine'
 
-const getMatch = (id: string) => {
-  const n = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  return 60 + (n % 36)
-}
 
 // ─── UserCard ─────────────────────────────────────────────────────────────────
 
@@ -1065,6 +1072,7 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true)
   const [likesToday, setLikesToday] = useState(0)
   const [superLikesToday, setSuperLikesToday] = useState(0)
+  const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null)
 
   // Trips state
   const [userId, setUserId] = useState<string | null>(null)
@@ -1090,16 +1098,34 @@ export default function DiscoverScreen() {
   useEffect(() => {
     const fetchAll = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      console.log('Current user id:', user?.id)
       if (!user) { setLoading(false); return }
       setUserId(user.id)
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, avatar_url, travel_vibes, personality_tags, city, bio, subscription_tier, date_of_birth')
-        .neq('id', user.id).limit(20)
-      console.log('Users fetched:', data?.length, 'Error:', error)
-      console.log('Raw data:', JSON.stringify(data?.slice(0, 2)))
-      if (data) setUsers(data.map(u => ({ ...u, match: getMatch(u.id) })))
+
+      const [meRes, othersRes] = await Promise.all([
+        supabase
+          .from('users')
+          .select('travel_vibes, personality_tags, verification_level, avatar_url, bio, city')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('users')
+          .select('id, first_name, last_name, avatar_url, travel_vibes, personality_tags, city, bio, subscription_tier, date_of_birth, verification_level')
+          .neq('id', user.id)
+          .limit(20),
+      ])
+
+      const me: CurrentUserProfile = meRes.data ?? {
+        travel_vibes: null, personality_tags: null, verification_level: null,
+        avatar_url: null, bio: null, city: null,
+      }
+      setCurrentUserProfile(me)
+
+      if (othersRes.data) {
+        setUsers(othersRes.data.map(u => ({
+          ...u,
+          match: calculateMatchScore(me, u),
+        })))
+      }
       setLoading(false)
     }
     fetchAll()
