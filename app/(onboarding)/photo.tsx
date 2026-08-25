@@ -50,6 +50,17 @@ export default function PhotoScreen() {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       console.log('SignIn result:', data?.user?.id, error?.message)
       if (data?.user?.id) return data.user.id
+
+      // If email not confirmed, look up user id directly from the users table
+      if (error?.message?.includes('not confirmed')) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .single()
+        console.log('Fallback user lookup:', userData?.id)
+        if (userData?.id) return userData.id
+      }
     }
 
     console.log('ALL AUTH METHODS FAILED')
