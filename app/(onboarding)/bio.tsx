@@ -83,12 +83,14 @@ export default function BioScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
-      await supabase.from('users').update({
-        country: country || null,
+      const { error } = await supabase.from('users').update({
+        city: country || null,
         budget_preference: budget,
-        bio: bio.trim() || null,
+        bio: bio,
         onboarding_complete: true,
       }).eq('id', user.id)
+      console.log('Save result:', error)
+      if (error) throw error
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Could not save profile.')
       setLoading(false)
@@ -153,9 +155,11 @@ export default function BioScreen() {
         body: JSON.stringify({ message: prompt }),
       })
       const data = await response.json()
+      console.log('AI bio response:', JSON.stringify(data))
       const generatedBio = data.reply || data.message || data.content?.[0]?.text || ''
       setBio(generatedBio.substring(0, 150))
-    } catch (err) {
+    } catch (err: any) {
+      console.log('AI bio error:', err?.message, err)
       Alert.alert('Error', 'Could not generate bio. Please try again.')
     } finally {
       setAiLoading(false)
