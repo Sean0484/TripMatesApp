@@ -35,17 +35,24 @@ export default function PhotoScreen() {
   const [attempted, setAttempted] = useState(false)
 
   const signInIfNeeded = async (): Promise<string | null> => {
+    console.log('=== SIGN IN IF NEEDED ===')
+
     const { data: { session } } = await supabase.auth.getSession()
+    console.log('Existing session:', session?.user?.id)
     if (session?.user?.id) return session.user.id
 
     const email = await SecureStore.getItemAsync('pending_email')
     const password = await SecureStore.getItemAsync('pending_password')
+    console.log('Stored email:', email)
+    console.log('Has password:', !!password)
 
     if (email && password) {
-      const { data } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      console.log('SignIn result:', data?.user?.id, error?.message)
       if (data?.user?.id) return data.user.id
     }
 
+    console.log('ALL AUTH METHODS FAILED')
     return null
   }
 
