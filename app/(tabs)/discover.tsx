@@ -12,7 +12,6 @@ import Animated, {
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import { LinearGradient } from 'expo-linear-gradient'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
@@ -1039,26 +1038,6 @@ const SUPERLIKE_LIMITS: Record<string, number> = {
   voyager: 10,
   premium: 15,
 }
-const LIKES_KEY = 'daily_likes'
-const LIKES_DATE_KEY = 'daily_likes_date'
-const SUPERLIKES_KEY = 'daily_superlikes'
-const SUPERLIKES_DATE_KEY = 'daily_superlikes_date'
-
-async function loadDailyCount(countKey: string, dateKey: string): Promise<number> {
-  const today = new Date().toDateString()
-  const saved = await AsyncStorage.getItem(dateKey)
-  if (saved !== today) {
-    await AsyncStorage.setItem(dateKey, today)
-    await AsyncStorage.setItem(countKey, '0')
-    return 0
-  }
-  return parseInt((await AsyncStorage.getItem(countKey)) ?? '0', 10)
-}
-
-async function incrementDailyCount(countKey: string): Promise<void> {
-  const current = parseInt((await AsyncStorage.getItem(countKey)) ?? '0', 10)
-  await AsyncStorage.setItem(countKey, String(current + 1))
-}
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets()
@@ -1089,15 +1068,6 @@ export default function DiscoverScreen() {
   const tx = useSharedValue(0)
   const ty = useSharedValue(0)
 
-  useEffect(() => {
-    Promise.all([
-      loadDailyCount(LIKES_KEY, LIKES_DATE_KEY),
-      loadDailyCount(SUPERLIKES_KEY, SUPERLIKES_DATE_KEY),
-    ]).then(([likes, superLikes]) => {
-      setLikesToday(likes)
-      setSuperLikesToday(superLikes)
-    })
-  }, [])
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -1153,7 +1123,6 @@ export default function DiscoverScreen() {
         return
       }
       setLikesToday(prev => prev + 1)
-      incrementDailyCount(LIKES_KEY)
     } else if (action === 'super_like') {
       const limit = SUPERLIKE_LIMITS[currentTier] ?? 0
       if (limit === 0) {
@@ -1169,7 +1138,6 @@ export default function DiscoverScreen() {
         return
       }
       setSuperLikesToday(prev => prev + 1)
-      incrementDailyCount(SUPERLIKES_KEY)
     }
 
     tx.value = 0; ty.value = 0
