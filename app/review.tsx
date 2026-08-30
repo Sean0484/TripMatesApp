@@ -35,11 +35,11 @@ export default function ReviewScreen() {
         return
       }
       const { error } = await supabase.from('reviews').upsert({
-        reviewer_id: user.id,
-        reviewed_id: revieweeId,
+        author_id: user.id,
+        subject_id: revieweeId,
         rating,
         comment: comment.trim() || null,
-      }, { onConflict: 'reviewer_id,reviewed_id' })
+      }, { onConflict: 'author_id,subject_id' })
       if (error) throw error
       Alert.alert('Review submitted!', 'Thank you for your feedback.', [
         { text: 'OK', onPress: () => router.back() },
