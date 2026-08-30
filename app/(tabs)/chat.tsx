@@ -97,6 +97,92 @@ function Avatar({ name, url, emoji, size = 46 }: {
   )
 }
 
+// ─── Chat Partner Profile Modal ───────────────────────────────────────────────
+
+function ChatPartnerProfileModal({ partnerId, partnerName, partnerAvatar, visible, onClose }: {
+  partnerId: string
+  partnerName: string
+  partnerAvatar: string | null
+  visible: boolean
+  onClose: () => void
+}) {
+  const router = useRouter()
+  const [bio, setBio] = useState<string | null>(null)
+  const [city, setCity] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!visible || !partnerId) return
+    setLoading(true)
+    supabase
+      .from('users')
+      .select('bio, city')
+      .eq('id', partnerId)
+      .single()
+      .then(({ data }) => {
+        if (data) { setBio(data.bio); setCity(data.city) }
+        setLoading(false)
+      })
+  }, [partnerId, visible])
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={cp.overlay}>
+        <View style={cp.sheet}>
+          <View style={cp.handle} />
+          <Avatar name={partnerName} url={partnerAvatar} size={72} />
+          <Text style={cp.name}>{partnerName}</Text>
+          {city ? <Text style={cp.city}>📍 {city}</Text> : null}
+          {loading ? (
+            <ActivityIndicator color="#1A6FFF" style={{ marginTop: 16 }} />
+          ) : bio ? (
+            <Text style={cp.bio}>{bio}</Text>
+          ) : (
+            <Text style={cp.noBio}>No bio yet</Text>
+          )}
+          <TouchableOpacity
+            style={cp.reviewBtn}
+            onPress={() => {
+              onClose()
+              router.push(`/review?revieweeId=${partnerId}&revieweeName=${encodeURIComponent(partnerName)}` as any)
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={cp.reviewBtnText}>⭐ Leave a Review</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={cp.cancelBtn} onPress={onClose}>
+            <Text style={cp.cancelBtnText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+const cp = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheet: {
+    backgroundColor: '#0D1F3C', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 28, paddingBottom: 44, alignItems: 'center',
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center', marginBottom: 24,
+  },
+  name: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 14, marginBottom: 4 },
+  city: { color: '#9ca3af', fontSize: 13, marginBottom: 12 },
+  bio: { color: '#d1d5db', fontSize: 14, lineHeight: 22, textAlign: 'center', marginTop: 8, marginBottom: 8 },
+  noBio: { color: '#4b5563', fontSize: 14, fontStyle: 'italic', marginTop: 8 },
+  reviewBtn: {
+    marginTop: 24, width: '100%', backgroundColor: 'rgba(245,158,11,0.12)',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)',
+    paddingVertical: 14, alignItems: 'center',
+  },
+  reviewBtnText: { color: '#f59e0b', fontSize: 15, fontWeight: '700' },
+  cancelBtn: { marginTop: 10, paddingVertical: 10, width: '100%', alignItems: 'center' },
+  cancelBtnText: { color: '#6b7280', fontSize: 14, fontWeight: '600' },
+})
+
 // ─── Chat Detail ──────────────────────────────────────────────────────────────
 
 function ChatDetail({ target, userId, visible, onClose }: {
@@ -112,6 +198,7 @@ function ChatDetail({ target, userId, visible, onClose }: {
   const [loading, setLoading] = useState(false)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [profileVisible, setProfileVisible] = useState(false)
   const flatRef = useRef<FlatList>(null)
 
   const targetKey = target
@@ -231,10 +318,14 @@ function ChatDetail({ target, userId, visible, onClose }: {
           <TouchableOpacity onPress={onClose} style={cd.backBtn}>
             <Text style={cd.backArrow}>←</Text>
           </TouchableOpacity>
-          <View style={cd.headerCenter}>
+          <TouchableOpacity
+            style={cd.headerCenter}
+            onPress={() => { if (target?.type === 'dm') setProfileVisible(true) }}
+            activeOpacity={target?.type === 'dm' ? 0.7 : 1}
+          >
             {headerAvatar}
             <Text style={cd.headerTitle} numberOfLines={1}>{headerTitle}</Text>
-          </View>
+          </TouchableOpacity>
           {target?.type === 'dm' ? (
             <TouchableOpacity
               style={cd.reviewBtn}
@@ -310,6 +401,15 @@ function ChatDetail({ target, userId, visible, onClose }: {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      {target?.type === 'dm' && (
+        <ChatPartnerProfileModal
+          partnerId={target.partnerId}
+          partnerName={target.partnerName}
+          partnerAvatar={target.partnerAvatar}
+          visible={profileVisible}
+          onClose={() => setProfileVisible(false)}
+        />
+      )}
     </Modal>
   )
 }

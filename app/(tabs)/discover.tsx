@@ -81,6 +81,7 @@ type TravelUser = {
   first_name: string
   last_name: string
   avatar_url: string | null
+  avatar_urls: string[] | null
   travel_vibes: string[] | null
   personality_tags: string | string[] | null
   city: string | null
@@ -827,17 +828,16 @@ const ts = StyleSheet.create({
 
 // ─── Profile Detail Modal ─────────────────────────────────────────────────────
 
-function ProfileDetailModal({ user, visible, onClose, onPass, onLike, currentUserId }: {
+function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
   user: TravelUser | null
   visible: boolean
   onClose: () => void
   onPass: () => void
   onLike: () => void
-  currentUserId: string | null
 }) {
-  const router = useRouter()
   const [reviews, setReviews] = useState<any[]>([])
   const [avgRating, setAvgRating] = useState<number | null>(null)
+  const [photoIndex, setPhotoIndex] = useState(0)
 
   useEffect(() => {
     if (!user || !visible) return
@@ -867,26 +867,48 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike, currentUse
   const personality = personalityKey ? PERSONALITY[personalityKey] : null
   const age = getAge(user.date_of_birth)
   const tripsCount = 12 + (user.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 38)
+  const photos: string[] = user.avatar_urls && user.avatar_urls.length > 0
+    ? user.avatar_urls
+    : user.avatar_url ? [user.avatar_url] : []
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
       <View style={pm.container}>
-        {/* Photo */}
+        {/* Photo gallery */}
         <View style={pm.photoWrap}>
-          {user.avatar_url ? (
-            <Image source={{ uri: user.avatar_url }} style={pm.photo} resizeMode="cover" />
-          ) : (
-            <LinearGradient
-              colors={['#1A3A6A', '#0A1E3A', '#001830']}
-              start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
-              style={pm.photo}
-            />
-          )}
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            style={{ width: W, height: '100%' }}
+            onMomentumScrollEnd={e => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / W)
+              setPhotoIndex(idx)
+            }}
+          >
+            {photos.length > 0 ? photos.map((uri, i) => (
+              <Image key={i} source={{ uri }} style={[pm.photo, { width: W }]} resizeMode="cover" />
+            )) : (
+              <LinearGradient
+                colors={['#1A3A6A', '#0A1E3A', '#001830']}
+                start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
+                style={[pm.photo, { width: W }]}
+              />
+            )}
+          </ScrollView>
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
             style={pm.photoGradient}
             start={{ x: 0, y: 0.5 }} end={{ x: 0, y: 1 }}
           />
+          {/* Dot indicators */}
+          {photos.length > 1 && (
+            <View style={pm.dotsWrap}>
+              {photos.map((_, i) => (
+                <View key={i} style={[pm.dot, i === photoIndex && pm.dotActive]} />
+              ))}
+            </View>
+          )}
           {/* Close */}
           <TouchableOpacity style={pm.closeBtn} onPress={onClose} activeOpacity={0.8}>
             <Text style={pm.closeBtnText}>✕</Text>
@@ -992,18 +1014,6 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike, currentUse
             <Text style={pm.likeBtnText}>Like ♥</Text>
           </TouchableOpacity>
         </View>
-        {currentUserId && currentUserId !== user.id && (
-          <TouchableOpacity
-            style={pm.reviewBtn}
-            onPress={() => {
-              onClose()
-              router.push(`/review?revieweeId=${user.id}&revieweeName=${encodeURIComponent((user.first_name ?? '') + ' ' + (user.last_name ?? ''))}` as any)
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={pm.reviewBtnText}>⭐ Leave a Review</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </Modal>
   )
@@ -1016,6 +1026,18 @@ const pm = StyleSheet.create({
   photo: { width: '100%', height: '100%' },
   photoGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
 
+  dotsWrap: {
+    position: 'absolute', top: 56, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', gap: 6,
+  },
+  dot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+  },
+  dotActive: {
+    width: 20, height: 6, borderRadius: 3,
+    backgroundColor: '#fff',
+  },
   closeBtn: {
     position: 'absolute', top: 52, right: 16,
     width: 36, height: 36, borderRadius: 18,
@@ -1090,13 +1112,6 @@ const pm = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
   },
   likeBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  reviewBtn: {
-    marginHorizontal: 20, marginBottom: 24, paddingVertical: 12,
-    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)',
-    backgroundColor: 'rgba(245,158,11,0.1)', alignItems: 'center',
-  },
-  reviewBtnText: { color: '#f59e0b', fontSize: 14, fontWeight: '700' },
-
   // Reviews
   noReviews: { color: '#4b5563', fontSize: 14, fontStyle: 'italic', marginBottom: 8 },
   reviewItem: {
@@ -1495,7 +1510,6 @@ export default function DiscoverScreen() {
         onClose={() => setProfileUser(null)}
         onPass={() => { setProfileUser(null); swipeLeft() }}
         onLike={() => { setProfileUser(null); swipeRight() }}
-        currentUserId={userId}
       />
 
     </GestureHandlerRootView>
