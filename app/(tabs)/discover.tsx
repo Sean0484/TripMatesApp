@@ -20,6 +20,7 @@ import { useSubscription } from '../../context/SubscriptionContext'
 import { calculateMatchScore } from '../../lib/matchScore'
 
 const { width: W, height: H } = Dimensions.get('window')
+const PHOTO_HEIGHT = H * 0.52
 const CARD_W = W - 32
 const CARD_H = H * 0.63
 const SWIPE_THRESHOLD = 100
@@ -875,27 +876,33 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
       <View style={pm.container}>
         {/* Photo gallery */}
-        <View style={pm.photoWrap}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={{ width: W, height: '100%' }}
-            onMomentumScrollEnd={e => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / W)
-              setPhotoIndex(idx)
-            }}
-          >
-            {photos.length > 0 ? photos.map((uri, i) => (
-              <Image key={i} source={{ uri }} style={[pm.photo, { width: W }]} resizeMode="cover" />
-            )) : (
-              <LinearGradient
-                colors={['#1A3A6A', '#0A1E3A', '#001830']}
-                start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
-                style={[pm.photo, { width: W }]}
-              />
-            )}
-          </ScrollView>
+        <View style={{ width: '100%', height: PHOTO_HEIGHT }}>
+          {photos.length > 0 ? (
+            <FlatList
+              data={photos}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={e => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / W)
+                setPhotoIndex(index)
+              }}
+              renderItem={({ item }) => (
+                <Image
+                  source={{ uri: item }}
+                  style={{ width: W, height: PHOTO_HEIGHT }}
+                  resizeMode="cover"
+                />
+              )}
+              keyExtractor={(_, index) => index.toString()}
+            />
+          ) : (
+            <LinearGradient
+              colors={['#1A3A6A', '#0A1E3A', '#001830']}
+              start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
+              style={{ width: W, height: PHOTO_HEIGHT }}
+            />
+          )}
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
             style={pm.photoGradient}
@@ -903,9 +910,17 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
           />
           {/* Dot indicators */}
           {photos.length > 1 && (
-            <View style={pm.dotsWrap}>
-              {photos.map((_, i) => (
-                <View key={i} style={[pm.dot, i === photoIndex && pm.dotActive]} />
+            <View style={{ position: 'absolute', top: 12, width: '100%', flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+              {photos.map((_, index) => (
+                <View
+                  key={index}
+                  style={{
+                    width: index === photoIndex ? 20 : 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: index === photoIndex ? '#FFFFFF' : 'rgba(255,255,255,0.5)',
+                  }}
+                />
               ))}
             </View>
           )}
@@ -1022,22 +1037,9 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
 const pm = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A1628' },
 
-  photoWrap: { width: '100%', height: H * 0.52, position: 'relative' },
   photo: { width: '100%', height: '100%' },
   photoGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
 
-  dotsWrap: {
-    position: 'absolute', top: 56, left: 0, right: 0,
-    flexDirection: 'row', justifyContent: 'center', gap: 6,
-  },
-  dot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-  },
-  dotActive: {
-    width: 20, height: 6, borderRadius: 3,
-    backgroundColor: '#fff',
-  },
   closeBtn: {
     position: 'absolute', top: 52, right: 16,
     width: 36, height: 36, borderRadius: 18,
