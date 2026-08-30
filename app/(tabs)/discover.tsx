@@ -872,7 +872,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
   const photos: string[] = user.avatar_urls && user.avatar_urls.length > 0
     ? user.avatar_urls
     : user.avatar_url ? [user.avatar_url] : []
-  console.log('Photos array:', photos)
+  console.log('Photos for user:', user.first_name, photos)
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
@@ -935,17 +935,17 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
               <Text style={pm.photoCity}>{getFlag(user.city)} {user.city}</Text>
             )}
           </View>
-          {/* Tap left to go back — rendered last so zIndex wins */}
+          {/* Tap left to go back — starts below close button area */}
           <Pressable
-            style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', zIndex: 999 }}
+            style={{ position: 'absolute', left: 0, top: 60, width: '45%', height: PHOTO_HEIGHT - 60, zIndex: 999 }}
             onPress={() => {
               console.log('LEFT PRESSED, going to index:', Math.max(0, photoIndex - 1))
               setPhotoIndex(i => Math.max(0, i - 1))
             }}
           />
-          {/* Tap right to go forward */}
+          {/* Tap right to go forward — starts below close button area */}
           <Pressable
-            style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', zIndex: 999 }}
+            style={{ position: 'absolute', right: 0, top: 60, width: '45%', height: PHOTO_HEIGHT - 60, zIndex: 999 }}
             onPress={() => {
               console.log('RIGHT PRESSED, going to index:', Math.min(photos.length - 1, photoIndex + 1))
               setPhotoIndex(i => Math.min(photos.length - 1, i + 1))
