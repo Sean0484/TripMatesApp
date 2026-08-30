@@ -869,10 +869,15 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
   const personality = personalityKey ? PERSONALITY[personalityKey] : null
   const age = getAge(user.date_of_birth)
   const tripsCount = 12 + (user.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 38)
-  const photos: string[] = user.avatar_urls && user.avatar_urls.length > 0
-    ? user.avatar_urls
-    : user.avatar_url ? [user.avatar_url] : []
-  console.log('Photos for user:', user.first_name, photos)
+  const buildPhotos = (u: TravelUser): string[] => {
+    console.log('Building photos for:', u.first_name, 'avatar_urls:', u.avatar_urls, 'avatar_url:', u.avatar_url)
+    if (u.avatar_urls && Array.isArray(u.avatar_urls) && u.avatar_urls.length > 0) {
+      return u.avatar_urls.filter(Boolean)
+    }
+    if (u.avatar_url) return [u.avatar_url]
+    return []
+  }
+  const photos = buildPhotos(user)
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
@@ -1216,6 +1221,7 @@ export default function DiscoverScreen() {
       setCurrentUserProfile(me)
 
       if (othersRes.data) {
+        console.log('First user raw data:', JSON.stringify(othersRes.data[0]))
         setUsers(othersRes.data.map(u => ({
           ...u,
           match: calculateMatchScore(me, u),
