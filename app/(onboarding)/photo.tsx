@@ -139,10 +139,12 @@ export default function PhotoScreen() {
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
         urls.push(publicUrl)
       }
-      await supabase.from('users').update({
+      const { error: updateError } = await supabase.from('users').update({
         avatar_url: urls[0],
         avatar_urls: urls,
       }).eq('id', userId)
+      console.log('Saved avatar_urls:', urls)
+      if (updateError) console.error('avatar_urls save error:', updateError.message)
     } catch (e: any) {
       Alert.alert('Upload failed', e.message ?? 'Could not upload photos.')
       setLoading(false)
