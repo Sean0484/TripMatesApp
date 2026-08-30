@@ -924,7 +924,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
             </View>
           )}
           {/* Close */}
-          <TouchableOpacity style={[pm.closeBtn, { zIndex: 10 }]} onPress={onClose} activeOpacity={0.8}>
+          <TouchableOpacity style={[pm.closeBtn, { zIndex: 9999 }]} onPress={onClose} activeOpacity={0.8}>
             <Text style={pm.closeBtnText}>✕</Text>
           </TouchableOpacity>
           {/* Match badge */}
