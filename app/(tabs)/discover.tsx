@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
-  View, Text, StyleSheet, TouchableOpacity, Image,
+  View, Text, StyleSheet, TouchableOpacity, Pressable, Image,
   Dimensions, ActivityIndicator, FlatList, TextInput,
   Modal, ScrollView, Alert, Switch, Platform, KeyboardAvoidingView,
 } from 'react-native'
@@ -878,7 +878,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
       <View style={pm.container}>
         {/* Photo gallery — tap left/right to navigate */}
-        <View style={{ width: '100%', height: PHOTO_HEIGHT, position: 'relative' }}>
+        <View style={{ width: '100%', height: PHOTO_HEIGHT }}>
           {photos.length > 0 ? (
             <Image
               source={{ uri: photos[photoIndex] }}
@@ -892,32 +892,19 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
               style={{ width: '100%', height: PHOTO_HEIGHT }}
             />
           )}
-          {/* Tap left to go back */}
-          <TouchableOpacity
-            style={{ position: 'absolute', left: 0, top: 0, width: '40%', height: '100%' }}
-            onPress={() => {
-              console.log('LEFT TAPPED, going to index:', Math.max(0, photoIndex - 1))
-              setPhotoIndex(i => Math.max(0, i - 1))
-            }}
-            activeOpacity={1}
-          />
-          {/* Tap right to go forward */}
-          <TouchableOpacity
-            style={{ position: 'absolute', right: 0, top: 0, width: '40%', height: '100%' }}
-            onPress={() => {
-              console.log('RIGHT TAPPED, going to index:', Math.min(photos.length - 1, photoIndex + 1))
-              setPhotoIndex(i => Math.min(photos.length - 1, i + 1))
-            }}
-            activeOpacity={1}
-          />
+          {/* Gradient overlay — pointerEvents none so taps pass through */}
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
-            style={pm.photoGradient}
+            style={[pm.photoGradient, { zIndex: 1, pointerEvents: 'none' }]}
             start={{ x: 0, y: 0.5 }} end={{ x: 0, y: 1 }}
           />
-          {/* Dot indicators */}
+          {/* Dot indicators — pointerEvents none */}
           {photos.length > 1 && (
-            <View style={{ position: 'absolute', top: 12, width: '100%', flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+            <View style={{
+              position: 'absolute', top: 12, width: '100%',
+              flexDirection: 'row', justifyContent: 'center', gap: 6,
+              zIndex: 3, pointerEvents: 'none',
+            }}>
               {photos.map((_, index) => (
                 <View
                   key={index}
@@ -932,15 +919,15 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
             </View>
           )}
           {/* Close */}
-          <TouchableOpacity style={pm.closeBtn} onPress={onClose} activeOpacity={0.8}>
+          <TouchableOpacity style={[pm.closeBtn, { zIndex: 10 }]} onPress={onClose} activeOpacity={0.8}>
             <Text style={pm.closeBtnText}>✕</Text>
           </TouchableOpacity>
           {/* Match badge */}
-          <View style={pm.matchBadge}>
+          <View style={[pm.matchBadge, { zIndex: 10 }]}>
             <Text style={pm.matchBadgeText}>{user.match}% Match</Text>
           </View>
           {/* Name overlay on photo */}
-          <View style={pm.photoNameWrap}>
+          <View style={[pm.photoNameWrap, { zIndex: 10 }]}>
             <Text style={pm.photoName}>
               {user.first_name} {user.last_name}{age ? `, ${age}` : ''}
             </Text>
@@ -948,6 +935,22 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
               <Text style={pm.photoCity}>{getFlag(user.city)} {user.city}</Text>
             )}
           </View>
+          {/* Tap left to go back — rendered last so zIndex wins */}
+          <Pressable
+            style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', zIndex: 999 }}
+            onPress={() => {
+              console.log('LEFT PRESSED, going to index:', Math.max(0, photoIndex - 1))
+              setPhotoIndex(i => Math.max(0, i - 1))
+            }}
+          />
+          {/* Tap right to go forward */}
+          <Pressable
+            style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', zIndex: 999 }}
+            onPress={() => {
+              console.log('RIGHT PRESSED, going to index:', Math.min(photos.length - 1, photoIndex + 1))
+              setPhotoIndex(i => Math.min(photos.length - 1, i + 1))
+            }}
+          />
         </View>
 
         <ScrollView style={pm.body} contentContainerStyle={pm.bodyPad} showsVerticalScrollIndicator={false}>
