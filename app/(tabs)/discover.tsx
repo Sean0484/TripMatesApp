@@ -874,7 +874,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
-      <View style={pm.container}>
+      <GestureHandlerRootView style={pm.container}>
         {/* Photo gallery */}
         <View style={{ width: '100%', height: PHOTO_HEIGHT }}>
           {photos.length > 0 ? (
@@ -1029,7 +1029,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
             <Text style={pm.likeBtnText}>Like ♥</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   )
 }
