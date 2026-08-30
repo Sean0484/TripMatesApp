@@ -12,6 +12,7 @@ import Animated, {
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
 import { LinearGradient } from 'expo-linear-gradient'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
@@ -826,13 +827,37 @@ const ts = StyleSheet.create({
 
 // ─── Profile Detail Modal ─────────────────────────────────────────────────────
 
-function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
+function ProfileDetailModal({ user, visible, onClose, onPass, onLike, currentUserId }: {
   user: TravelUser | null
   visible: boolean
   onClose: () => void
   onPass: () => void
   onLike: () => void
+  currentUserId: string | null
 }) {
+  const router = useRouter()
+  const [reviews, setReviews] = useState<any[]>([])
+  const [avgRating, setAvgRating] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!user || !visible) return
+    setReviews([])
+    setAvgRating(null)
+    supabase
+      .from('reviews')
+      .select('rating, comment, created_at, reviewer:reviewer_id(first_name, last_name)')
+      .eq('reviewee_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(3)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setReviews(data)
+          const avg = data.reduce((s: number, r: any) => s + r.rating, 0) / data.length
+          setAvgRating(Math.round(avg * 10) / 10)
+        }
+      })
+  }, [user?.id, visible])
+
   if (!user) return null
 
   const vibes = user.travel_vibes ?? []
@@ -922,6 +947,39 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
               <Text style={pm.statNum}>{user.match}%</Text>
               <Text style={pm.statLabel}>Match score</Text>
             </View>
+            {avgRating !== null && (
+              <>
+                <View style={pm.statDivider} />
+                <View style={pm.statBox}>
+                  <Text style={pm.statNum}>{avgRating}</Text>
+                  <Text style={pm.statLabel}>Rating ⭐</Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          {/* Reviews */}
+          <View style={{ marginTop: 24 }}>
+            <Text style={pm.sectionLabel}>REVIEWS</Text>
+            {reviews.length === 0 ? (
+              <Text style={pm.noReviews}>No reviews yet</Text>
+            ) : (
+              reviews.map((r, i) => (
+                <View key={i} style={pm.reviewItem}>
+                  <View style={pm.reviewItemHeader}>
+                    <Text style={pm.reviewerName}>
+                      {(r.reviewer as any)?.first_name ?? 'Traveller'}
+                    </Text>
+                    <Text style={pm.reviewStars}>
+                      {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                    </Text>
+                  </View>
+                  {r.comment ? (
+                    <Text style={pm.reviewComment}>{r.comment}</Text>
+                  ) : null}
+                </View>
+              ))
+            )}
           </View>
         </ScrollView>
 
@@ -934,6 +992,18 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
             <Text style={pm.likeBtnText}>Like ♥</Text>
           </TouchableOpacity>
         </View>
+        {currentUserId && currentUserId !== user.id && (
+          <TouchableOpacity
+            style={pm.reviewBtn}
+            onPress={() => {
+              onClose()
+              router.push(`/review?revieweeId=${user.id}&revieweeName=${encodeURIComponent((user.first_name ?? '') + ' ' + (user.last_name ?? ''))}` as any)
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={pm.reviewBtnText}>⭐ Leave a Review</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </Modal>
   )
@@ -1020,6 +1090,24 @@ const pm = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 8, elevation: 6,
   },
   likeBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  reviewBtn: {
+    marginHorizontal: 20, marginBottom: 24, paddingVertical: 12,
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)',
+    backgroundColor: 'rgba(245,158,11,0.1)', alignItems: 'center',
+  },
+  reviewBtnText: { color: '#f59e0b', fontSize: 14, fontWeight: '700' },
+
+  // Reviews
+  noReviews: { color: '#4b5563', fontSize: 14, fontStyle: 'italic', marginBottom: 8 },
+  reviewItem: {
+    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    padding: 12, marginBottom: 8,
+  },
+  reviewItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  reviewerName: { color: '#d1d5db', fontSize: 13, fontWeight: '700' },
+  reviewStars: { color: '#f59e0b', fontSize: 13 },
+  reviewComment: { color: '#9ca3af', fontSize: 13, lineHeight: 18 },
 })
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -1407,6 +1495,7 @@ export default function DiscoverScreen() {
         onClose={() => setProfileUser(null)}
         onPass={() => { setProfileUser(null); swipeLeft() }}
         onLike={() => { setProfileUser(null); swipeRight() }}
+        currentUserId={userId}
       />
 
     </GestureHandlerRootView>

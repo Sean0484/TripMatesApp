@@ -127,6 +127,7 @@ export default function ProfileScreen() {
   const [rating, setRating] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [receivedReviews, setReceivedReviews] = useState<any[]>([])
   const [photoModalVisible, setPhotoModalVisible] = useState(false)
   const [editPhotos, setEditPhotos] = useState<string[]>([])
   const [photoSaving, setPhotoSaving] = useState(false)
@@ -150,13 +151,18 @@ export default function ProfileScreen() {
     if (!session) return
     const userId = session.user.id
 
-    const [profileRes, tripRes, ratingRes] = await Promise.all([
+    const [profileRes, tripRes, ratingRes, reviewsRes] = await Promise.all([
       supabase.from('users').select('*').eq('id', userId).single(),
       supabase.from('trip_members')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('status', 'Approved'),
       supabase.from('reviews').select('rating').eq('reviewee_id', userId),
+      supabase.from('reviews')
+        .select('rating, comment, created_at, reviewer:reviewer_id(first_name, last_name)')
+        .eq('reviewee_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5),
     ])
 
     if (profileRes.data) {
@@ -168,6 +174,7 @@ export default function ProfileScreen() {
       const avg = ratingRes.data.reduce((s: number, r: any) => s + r.rating, 0) / ratingRes.data.length
       setRating(Math.round(avg * 10) / 10)
     }
+    if (reviewsRes.data) setReceivedReviews(reviewsRes.data)
     setLoading(false)
   }
 
@@ -423,6 +430,35 @@ export default function ProfileScreen() {
             <Text style={styles.bio}>
               {profile.bio || 'No bio yet. Tap Edit to add one.'}
             </Text>
+          </View>
+
+          {/* ── Reviews ── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⭐ Reviews</Text>
+            {receivedReviews.length === 0 ? (
+              <Text style={styles.emptyHint}>No reviews yet. Complete a trip to get reviewed!</Text>
+            ) : (
+              <View style={styles.card}>
+                {receivedReviews.map((r, i) => (
+                  <View
+                    key={i}
+                    style={[styles.reviewItem, i < receivedReviews.length - 1 && styles.reviewItemBorder]}
+                  >
+                    <View style={styles.reviewItemHeader}>
+                      <Text style={styles.reviewerName}>
+                        {(r.reviewer as any)?.first_name ?? 'Traveller'}
+                      </Text>
+                      <Text style={styles.reviewStars}>
+                        {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                      </Text>
+                    </View>
+                    {r.comment ? (
+                      <Text style={styles.reviewComment}>{r.comment}</Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
 
           {/* ── 1. Travel Style ── */}
@@ -1007,6 +1043,14 @@ const styles = StyleSheet.create({
   },
   editBtnText: { color: '#1A6FFF', fontSize: 13, fontWeight: '600' },
   bio: { color: '#d1d5db', fontSize: 14, lineHeight: 22 },
+
+  // Reviews
+  reviewItem: { paddingVertical: 12 },
+  reviewItemBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  reviewItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  reviewerName: { color: '#d1d5db', fontSize: 13, fontWeight: '700' },
+  reviewStars: { color: '#f59e0b', fontSize: 13 },
+  reviewComment: { color: '#9ca3af', fontSize: 13, lineHeight: 18 },
 
   // Settings rows
   settingsItem: {

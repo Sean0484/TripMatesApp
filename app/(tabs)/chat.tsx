@@ -6,6 +6,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useRouter } from 'expo-router'
 import { supabase } from '../../lib/supabase'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
@@ -105,6 +106,7 @@ function ChatDetail({ target, userId, visible, onClose }: {
   onClose: () => void
 }) {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const { language } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
@@ -233,7 +235,20 @@ function ChatDetail({ target, userId, visible, onClose }: {
             {headerAvatar}
             <Text style={cd.headerTitle} numberOfLines={1}>{headerTitle}</Text>
           </View>
-          <View style={{ width: 40 }} />
+          {target?.type === 'dm' ? (
+            <TouchableOpacity
+              style={cd.reviewBtn}
+              onPress={() => {
+                onClose()
+                router.push(`/review?revieweeId=${target.partnerId}&revieweeName=${encodeURIComponent(target.partnerName)}` as any)
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={cd.reviewBtnText}>⭐</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
         </View>
 
         {/* Messages */}
@@ -312,6 +327,12 @@ const cd = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   backArrow: { color: '#fff', fontSize: 20, fontWeight: '600' },
+  reviewBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  reviewBtnText: { fontSize: 18 },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff', flexShrink: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
