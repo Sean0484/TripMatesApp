@@ -51,7 +51,7 @@ export default function ReviewScreen() {
       } else {
         const { error: insertError } = await supabase
           .from('reviews')
-          .insert({ author_id: user.id, subject_id: revieweeId, rating, comment: comment.trim() || null })
+          .insert({ author_id: user.id, subject_id: revieweeId, rating, comment: comment.trim() || null, trip_id: null })
         error = insertError
       }
       if (error) throw error
