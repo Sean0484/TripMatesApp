@@ -1204,7 +1204,7 @@ export default function DiscoverScreen() {
           .single(),
         supabase
           .from('users')
-          .select('id, first_name, last_name, avatar_url, travel_vibes, personality_tags, city, bio, subscription_tier, date_of_birth, verification_level')
+          .select('id, first_name, last_name, avatar_url, avatar_urls, travel_vibes, personality_tags, city, bio, subscription_tier, date_of_birth, verification_level')
           .neq('id', user.id)
           .limit(20),
       ])
