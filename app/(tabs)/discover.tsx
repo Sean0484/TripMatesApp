@@ -844,6 +844,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
     if (!user || !visible) return
     setReviews([])
     setAvgRating(null)
+    setPhotoIndex(0)
     supabase
       .from('reviews')
       .select('rating, comment, created_at, reviewer:reviewer_id(first_name, last_name)')
@@ -874,35 +875,34 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
-      <GestureHandlerRootView style={pm.container}>
-        {/* Photo gallery */}
-        <View style={{ width: '100%', height: PHOTO_HEIGHT }}>
+      <View style={pm.container}>
+        {/* Photo gallery — tap left/right to navigate */}
+        <View style={{ width: '100%', height: PHOTO_HEIGHT, position: 'relative' }}>
           {photos.length > 0 ? (
-            <FlatList
-              data={photos}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={e => {
-                const index = Math.round(e.nativeEvent.contentOffset.x / W)
-                setPhotoIndex(index)
-              }}
-              renderItem={({ item }) => (
-                <Image
-                  source={{ uri: item }}
-                  style={{ width: W, height: PHOTO_HEIGHT }}
-                  resizeMode="cover"
-                />
-              )}
-              keyExtractor={(_, index) => index.toString()}
+            <Image
+              source={{ uri: photos[photoIndex] }}
+              style={{ width: '100%', height: PHOTO_HEIGHT }}
+              resizeMode="cover"
             />
           ) : (
             <LinearGradient
               colors={['#1A3A6A', '#0A1E3A', '#001830']}
               start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }}
-              style={{ width: W, height: PHOTO_HEIGHT }}
+              style={{ width: '100%', height: PHOTO_HEIGHT }}
             />
           )}
+          {/* Tap left to go back */}
+          <TouchableOpacity
+            style={{ position: 'absolute', left: 0, top: 0, width: '40%', height: '100%' }}
+            onPress={() => setPhotoIndex(i => Math.max(0, i - 1))}
+            activeOpacity={1}
+          />
+          {/* Tap right to go forward */}
+          <TouchableOpacity
+            style={{ position: 'absolute', right: 0, top: 0, width: '40%', height: '100%' }}
+            onPress={() => setPhotoIndex(i => Math.min(photos.length - 1, i + 1))}
+            activeOpacity={1}
+          />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
             style={pm.photoGradient}
@@ -1029,7 +1029,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
             <Text style={pm.likeBtnText}>Like ♥</Text>
           </TouchableOpacity>
         </View>
-      </GestureHandlerRootView>
+      </View>
     </Modal>
   )
 }
