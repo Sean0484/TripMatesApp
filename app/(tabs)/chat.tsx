@@ -99,6 +99,18 @@ function Avatar({ name, url, emoji, size = 46 }: {
 
 // ─── Chat Partner Profile Modal ───────────────────────────────────────────────
 
+type ChatPartnerProfile = {
+  id: string
+  first_name: string
+  last_name: string | null
+  avatar_url: string | null
+  avatar_urls: string[] | null
+  bio: string | null
+  city: string | null
+  travel_vibes: string[] | null
+  personality_tags: string[] | null
+}
+
 function ChatPartnerProfileModal({ partnerId, partnerName, partnerAvatar, visible, onClose }: {
   partnerId: string
   partnerName: string
@@ -107,38 +119,64 @@ function ChatPartnerProfileModal({ partnerId, partnerName, partnerAvatar, visibl
   onClose: () => void
 }) {
   const router = useRouter()
-  const [bio, setBio] = useState<string | null>(null)
-  const [city, setCity] = useState<string | null>(null)
+  const [profile, setProfile] = useState<ChatPartnerProfile | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const fetchChatPartnerProfile = async (id: string) => {
+    const { data } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, avatar_url, avatar_urls, bio, city, travel_vibes, personality_tags')
+      .eq('id', id)
+      .single()
+    setProfile(data)
+  }
 
   useEffect(() => {
     if (!visible || !partnerId) return
     setLoading(true)
-    supabase
-      .from('users')
-      .select('bio, city')
-      .eq('id', partnerId)
-      .single()
-      .then(({ data }) => {
-        if (data) { setBio(data.bio); setCity(data.city) }
-        setLoading(false)
-      })
+    fetchChatPartnerProfile(partnerId).finally(() => setLoading(false))
   }, [partnerId, visible])
+
+  const displayAvatar = profile?.avatar_urls?.[0] ?? profile?.avatar_url ?? partnerAvatar
+  const vibes: string[] = profile?.travel_vibes ?? []
+  const personality: string[] = profile?.personality_tags ?? []
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={cp.overlay}>
         <View style={cp.sheet}>
           <View style={cp.handle} />
-          <Avatar name={partnerName} url={partnerAvatar} size={72} />
-          <Text style={cp.name}>{partnerName}</Text>
-          {city ? <Text style={cp.city}>📍 {city}</Text> : null}
           {loading ? (
-            <ActivityIndicator color="#1A6FFF" style={{ marginTop: 16 }} />
-          ) : bio ? (
-            <Text style={cp.bio}>{bio}</Text>
+            <ActivityIndicator color="#1A6FFF" style={{ marginVertical: 40 }} />
           ) : (
-            <Text style={cp.noBio}>No bio yet</Text>
+            <>
+              <Avatar name={partnerName} url={displayAvatar} size={80} />
+              <Text style={cp.name}>{partnerName}</Text>
+              {profile?.city ? <Text style={cp.city}>📍 {profile.city}</Text> : null}
+              {profile?.bio ? (
+                <Text style={cp.bio}>{profile.bio}</Text>
+              ) : (
+                <Text style={cp.noBio}>No bio yet</Text>
+              )}
+              {vibes.length > 0 && (
+                <View style={cp.tagsRow}>
+                  {vibes.slice(0, 4).map(v => (
+                    <View key={v} style={cp.tag}>
+                      <Text style={cp.tagText}>{v}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {personality.length > 0 && (
+                <View style={cp.tagsRow}>
+                  {personality.slice(0, 3).map(p => (
+                    <View key={p} style={[cp.tag, cp.tagPersonality]}>
+                      <Text style={[cp.tagText, { color: '#a78bfa' }]}>{p}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
           )}
           <TouchableOpacity
             style={cp.reviewBtn}
@@ -173,6 +211,13 @@ const cp = StyleSheet.create({
   city: { color: '#9ca3af', fontSize: 13, marginBottom: 12 },
   bio: { color: '#d1d5db', fontSize: 14, lineHeight: 22, textAlign: 'center', marginTop: 8, marginBottom: 8 },
   noBio: { color: '#4b5563', fontSize: 14, fontStyle: 'italic', marginTop: 8 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 10, width: '100%' },
+  tag: {
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    backgroundColor: 'rgba(26,111,255,0.12)', borderWidth: 1, borderColor: 'rgba(26,111,255,0.25)',
+  },
+  tagPersonality: { backgroundColor: 'rgba(167,139,250,0.1)', borderColor: 'rgba(167,139,250,0.25)' },
+  tagText: { color: '#60a5fa', fontSize: 12, fontWeight: '600' },
   reviewBtn: {
     marginTop: 24, width: '100%', backgroundColor: 'rgba(245,158,11,0.12)',
     borderRadius: 14, borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)',
