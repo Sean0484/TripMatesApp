@@ -872,6 +872,7 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
   const photos: string[] = user.avatar_urls && user.avatar_urls.length > 0
     ? user.avatar_urls
     : user.avatar_url ? [user.avatar_url] : []
+  console.log('Photos array:', photos)
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} statusBarTranslucent>
@@ -894,13 +895,19 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
           {/* Tap left to go back */}
           <TouchableOpacity
             style={{ position: 'absolute', left: 0, top: 0, width: '40%', height: '100%' }}
-            onPress={() => setPhotoIndex(i => Math.max(0, i - 1))}
+            onPress={() => {
+              console.log('LEFT TAPPED, going to index:', Math.max(0, photoIndex - 1))
+              setPhotoIndex(i => Math.max(0, i - 1))
+            }}
             activeOpacity={1}
           />
           {/* Tap right to go forward */}
           <TouchableOpacity
             style={{ position: 'absolute', right: 0, top: 0, width: '40%', height: '100%' }}
-            onPress={() => setPhotoIndex(i => Math.min(photos.length - 1, i + 1))}
+            onPress={() => {
+              console.log('RIGHT TAPPED, going to index:', Math.min(photos.length - 1, photoIndex + 1))
+              setPhotoIndex(i => Math.min(photos.length - 1, i + 1))
+            }}
             activeOpacity={1}
           />
           <LinearGradient
