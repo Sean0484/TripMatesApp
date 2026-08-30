@@ -847,8 +847,8 @@ function ProfileDetailModal({ user, visible, onClose, onPass, onLike }: {
     setPhotoIndex(0)
     supabase
       .from('reviews')
-      .select('rating, comment, created_at, reviewer:reviewer_id(first_name, last_name)')
-      .eq('reviewee_id', user.id)
+      .select('rating, comment, created_at, reviewer:author_id(first_name, last_name)')
+      .eq('subject_id', user.id)
       .order('created_at', { ascending: false })
       .limit(3)
       .then(({ data }) => {
