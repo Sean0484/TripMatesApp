@@ -140,13 +140,15 @@ export default function BioScreen() {
     const uniqueSeed = Math.random().toString(36).substring(7)
     const timestamp = Date.now()
 
-    let prompt = ''
+    const systemInstruction = `You are a travel bio writer. Return ONLY the bio text itself — no titles, no markdown, no hashtags, no bold markers, no quotation marks, no labels like "Travel Bio:" or "Bio:". Just the raw bio text in plain language. Maximum 120 characters. Keep it positive and friendly. Never include profanity, insults, or offensive content in any language.`
+
+    let userPrompt = ''
     if (notes && notes.trim().length > 0) {
-      prompt = `Write a unique travel bio (max 120 characters) based on these personal notes: "${notes}". Writing style: ${randomStyle}. Make it creative and personal. Reference: ${uniqueSeed}-${timestamp}.`
+      userPrompt = `Write a travel bio based on these notes: "${notes}". Style: ${randomStyle}. Seed: ${uniqueSeed}.`
     } else {
       const vibesStr = selectedVibes.length ? selectedVibes.join(', ') : 'adventure'
       const personalityStr = selectedPersonality.replace('_', ' ') || 'spontaneous'
-      prompt = `Write a unique travel bio (max 120 characters) for someone who loves ${vibesStr} and is a ${personalityStr} traveller. Writing style: ${randomStyle}. Make it creative and different every time. Reference: ${uniqueSeed}-${timestamp}.`
+      userPrompt = `Write a travel bio for someone who loves ${vibesStr} and is a ${personalityStr} traveller. Style: ${randomStyle}. Seed: ${uniqueSeed}.`
     }
 
     try {
@@ -156,13 +158,20 @@ export default function BioScreen() {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify({ messages: [{ role: 'user', content: systemInstruction + '\n\n' + userPrompt }] }),
       })
       const data = await response.json()
       console.log('AI bio response:', JSON.stringify(data))
       const generatedBio = data.reply || data.message || data.content?.[0]?.text || ''
       if (generatedBio) {
-        setBio(generatedBio.substring(0, 150))
+        const cleanBio = generatedBio
+          .replace(/^#+\s*/gm, '')
+          .replace(/\*\*/g, '')
+          .replace(/\*/g, '')
+          .replace(/^["']|["']$/g, '')
+          .replace(/^(Travel Bio|Bio|About me):\s*/i, '')
+          .trim()
+        setBio(cleanBio.substring(0, 150))
       } else {
         Alert.alert('Error', 'Could not generate bio. Please try again.')
       }
