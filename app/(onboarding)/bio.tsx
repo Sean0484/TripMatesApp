@@ -140,10 +140,14 @@ export default function BioScreen() {
     const uniqueSeed = Math.random().toString(36).substring(7)
     const timestamp = Date.now()
 
-    const vibesStr = selectedVibes.length ? selectedVibes.join(', ') : 'adventure'
-    const personalityStr = selectedPersonality.replace('_', ' ') || 'spontaneous'
-
-    const prompt = `Generate a unique travel bio (max 120 characters) for someone who loves ${vibesStr} and is a ${personalityStr} traveller. Writing style: ${randomStyle}. ${notes ? `Personal notes: ${notes}.` : ''} Make it creative and different every time. Reference: ${uniqueSeed}-${timestamp}.`
+    let prompt = ''
+    if (notes && notes.trim().length > 0) {
+      prompt = `Write a unique travel bio (max 120 characters) based on these personal notes: "${notes}". Writing style: ${randomStyle}. Make it creative and personal. Reference: ${uniqueSeed}-${timestamp}.`
+    } else {
+      const vibesStr = selectedVibes.length ? selectedVibes.join(', ') : 'adventure'
+      const personalityStr = selectedPersonality.replace('_', ' ') || 'spontaneous'
+      prompt = `Write a unique travel bio (max 120 characters) for someone who loves ${vibesStr} and is a ${personalityStr} traveller. Writing style: ${randomStyle}. Make it creative and different every time. Reference: ${uniqueSeed}-${timestamp}.`
+    }
 
     try {
       const response = await fetch('https://www.tripmatess.com/api/chat', {
@@ -152,12 +156,16 @@ export default function BioScreen() {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ message: prompt }),
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
       })
       const data = await response.json()
       console.log('AI bio response:', JSON.stringify(data))
       const generatedBio = data.reply || data.message || data.content?.[0]?.text || ''
-      setBio(generatedBio.substring(0, 150))
+      if (generatedBio) {
+        setBio(generatedBio.substring(0, 150))
+      } else {
+        Alert.alert('Error', 'Could not generate bio. Please try again.')
+      }
     } catch (err: any) {
       console.log('AI bio error:', err?.message, err)
       Alert.alert('Error', 'Could not generate bio. Please try again.')
