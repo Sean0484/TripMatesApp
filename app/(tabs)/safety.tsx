@@ -8,6 +8,8 @@ import * as Location from 'expo-location'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
+import { countries } from 'countries-list'
+import allCities from 'all-the-cities'
 
 // OpenWeatherMap key (split to avoid scanner false-positives)
 const OPENWEATHER_API_KEY = '1e357647c247468c' + 'f388fa2acbf388e9'
@@ -19,58 +21,37 @@ type Destination = {
   type: 'city' | 'country' | 'island'
 }
 
-const DESTINATIONS: Destination[] = [
-  { name: 'Paris', country: 'France', flag: '🇫🇷', type: 'city' },
-  { name: 'London', country: 'United Kingdom', flag: '🇬🇧', type: 'city' },
-  { name: 'Tokyo', country: 'Japan', flag: '🇯🇵', type: 'city' },
-  { name: 'New York', country: 'USA', flag: '🇺🇸', type: 'city' },
-  { name: 'Rome', country: 'Italy', flag: '🇮🇹', type: 'city' },
-  { name: 'Barcelona', country: 'Spain', flag: '🇪🇸', type: 'city' },
-  { name: 'Amsterdam', country: 'Netherlands', flag: '🇳🇱', type: 'city' },
-  { name: 'Dubai', country: 'UAE', flag: '🇦🇪', type: 'city' },
-  { name: 'Sydney', country: 'Australia', flag: '🇦🇺', type: 'city' },
-  { name: 'Bangkok', country: 'Thailand', flag: '🇹🇭', type: 'city' },
-  { name: 'Singapore', country: 'Singapore', flag: '🇸🇬', type: 'city' },
-  { name: 'Bali', country: 'Indonesia', flag: '🇮🇩', type: 'island' },
-  { name: 'Cancún', country: 'Mexico', flag: '🇲🇽', type: 'city' },
-  { name: 'Santorini', country: 'Greece', flag: '🇬🇷', type: 'island' },
-  { name: 'Istanbul', country: 'Turkey', flag: '🇹🇷', type: 'city' },
-  { name: 'Prague', country: 'Czech Republic', flag: '🇨🇿', type: 'city' },
-  { name: 'Vienna', country: 'Austria', flag: '🇦🇹', type: 'city' },
-  { name: 'Lisbon', country: 'Portugal', flag: '🇵🇹', type: 'city' },
-  { name: 'Berlin', country: 'Germany', flag: '🇩🇪', type: 'city' },
-  { name: 'Budapest', country: 'Hungary', flag: '🇭🇺', type: 'city' },
-  { name: 'Cape Town', country: 'South Africa', flag: '🇿🇦', type: 'city' },
-  { name: 'Marrakech', country: 'Morocco', flag: '🇲🇦', type: 'city' },
-  { name: 'Dubrovnik', country: 'Croatia', flag: '🇭🇷', type: 'city' },
-  { name: 'Kyoto', country: 'Japan', flag: '🇯🇵', type: 'city' },
-  { name: 'Osaka', country: 'Japan', flag: '🇯🇵', type: 'city' },
-  { name: 'Seoul', country: 'South Korea', flag: '🇰🇷', type: 'city' },
-  { name: 'Hong Kong', country: 'Hong Kong', flag: '🇭🇰', type: 'city' },
-  { name: 'Mumbai', country: 'India', flag: '🇮🇳', type: 'city' },
-  { name: 'Delhi', country: 'India', flag: '🇮🇳', type: 'city' },
-  { name: 'Rio de Janeiro', country: 'Brazil', flag: '🇧🇷', type: 'city' },
-  { name: 'Buenos Aires', country: 'Argentina', flag: '🇦🇷', type: 'city' },
-  { name: 'Medellín', country: 'Colombia', flag: '🇨🇴', type: 'city' },
-  { name: 'Mexico City', country: 'Mexico', flag: '🇲🇽', type: 'city' },
-  { name: 'Toronto', country: 'Canada', flag: '🇨🇦', type: 'city' },
-  { name: 'Vancouver', country: 'Canada', flag: '🇨🇦', type: 'city' },
-  { name: 'Miami', country: 'USA', flag: '🇺🇸', type: 'city' },
-  { name: 'Los Angeles', country: 'USA', flag: '🇺🇸', type: 'city' },
-  { name: 'Maldives', country: 'Maldives', flag: '🇲🇻', type: 'island' },
-  { name: 'Phuket', country: 'Thailand', flag: '🇹🇭', type: 'island' },
-  { name: 'Mykonos', country: 'Greece', flag: '🇬🇷', type: 'island' },
-  { name: 'Ibiza', country: 'Spain', flag: '🇪🇸', type: 'island' },
-  { name: 'Reykjavik', country: 'Iceland', flag: '🇮🇸', type: 'city' },
-  { name: 'Stockholm', country: 'Sweden', flag: '🇸🇪', type: 'city' },
-  { name: 'Copenhagen', country: 'Denmark', flag: '🇩🇰', type: 'city' },
-  { name: 'Zurich', country: 'Switzerland', flag: '🇨🇭', type: 'city' },
-  { name: 'Cairo', country: 'Egypt', flag: '🇪🇬', type: 'city' },
-  { name: 'Nairobi', country: 'Kenya', flag: '🇰🇪', type: 'city' },
-  { name: 'Havana', country: 'Cuba', flag: '🇨🇺', type: 'city' },
-  { name: 'Kathmandu', country: 'Nepal', flag: '🇳🇵', type: 'city' },
-  { name: 'Chiang Mai', country: 'Thailand', flag: '🇹🇭', type: 'city' },
-]
+// Convert ISO 3166-1 alpha-2 code to flag emoji
+const codeToFlag = (code: string): string => {
+  if (!code || code.length !== 2) return '🌍'
+  return Array.from(code.toUpperCase())
+    .map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65))
+    .join('')
+}
+
+// Build country name → flag lookup from countries-list
+const countryCodeByName: Record<string, string> = {}
+const countryDestinations: Destination[] = Object.entries(countries).map(([code, country]: any) => {
+  countryCodeByName[country.name] = code
+  return {
+    name: country.name,
+    country: country.name,
+    flag: codeToFlag(code),
+    type: 'country' as const,
+  }
+})
+
+// Major cities with population > 100,000
+const cityDestinations: Destination[] = (allCities as any[])
+  .filter((c: any) => c.population > 100000)
+  .map((c: any) => ({
+    name: c.name,
+    country: (countries as any)[c.country]?.name ?? c.country,
+    flag: codeToFlag(c.country),
+    type: 'city' as const,
+  }))
+
+const ALL_DESTINATIONS: Destination[] = [...countryDestinations, ...cityDestinations]
 
 type SafetyData = {
   safetyScore: number
@@ -259,10 +240,10 @@ export default function SafetyScreen() {
   const inputRef = useRef<TextInput>(null)
 
   const filtered = query.length > 0
-    ? DESTINATIONS.filter(d =>
+    ? ALL_DESTINATIONS.filter(d =>
         d.name.toLowerCase().includes(query.toLowerCase()) ||
         d.country.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 6)
+      ).slice(0, 8)
     : []
 
   const handleSelect = useCallback((dest: Destination) => {
@@ -611,7 +592,7 @@ export default function SafetyScreen() {
                   style={styles.chip}
                   onPress={() => {
                     const name = chip.split(' ').slice(1).join(' ')
-                    const dest = DESTINATIONS.find(d => d.name === name)
+                    const dest = ALL_DESTINATIONS.find(d => d.name === name)
                     if (dest) handleSelect(dest)
                   }}
                 >
