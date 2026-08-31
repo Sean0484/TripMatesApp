@@ -9,7 +9,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useLanguage } from '../../context/LanguageContext'
 import { t } from '../../lib/i18n'
 import { countries } from 'countries-list'
-import allCities from 'all-the-cities'
+import { MAJOR_CITIES } from '../../lib/cities'
 
 // OpenWeatherMap key (split to avoid scanner false-positives)
 const OPENWEATHER_API_KEY = '1e357647c247468c' + 'f388fa2acbf388e9'
@@ -41,15 +41,13 @@ const countryDestinations: Destination[] = Object.entries(countries).map(([code,
   }
 })
 
-// Major cities with population > 100,000
-const cityDestinations: Destination[] = (allCities as any[])
-  .filter((c: any) => c.population > 100000)
-  .map((c: any) => ({
-    name: c.name,
-    country: (countries as any)[c.country]?.name ?? c.country,
-    flag: codeToFlag(c.country),
-    type: 'city' as const,
-  }))
+// Major cities from static list
+const cityDestinations: Destination[] = MAJOR_CITIES.map(c => ({
+  name: c.name,
+  country: c.country,
+  flag: codeToFlag(c.code),
+  type: 'city' as const,
+}))
 
 const ALL_DESTINATIONS: Destination[] = [...countryDestinations, ...cityDestinations]
 
