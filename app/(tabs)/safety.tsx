@@ -524,22 +524,23 @@ export default function SafetyScreen() {
                   </View>
                 )
               }
+              const embassySearchUrl = `https://www.embassypages.com/city/${selected.name.toLowerCase().replace(/ /g, '-')}`
               return (
                 <View style={[styles.card, { borderColor: 'rgba(99,102,241,0.3)', backgroundColor: 'rgba(99,102,241,0.08)' }]}>
                   <Text style={styles.cardLabel}>EMBASSY</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <Text style={{ fontSize: 20 }}>🏛️</Text>
-                    <Text style={{ color: '#a5b4fc', fontSize: 14, fontWeight: '700' }}>Find Your Embassy</Text>
+                    <Text style={{ color: '#a5b4fc', fontSize: 14, fontWeight: '700' }}>Find Your Embassy in {selected.name}</Text>
                   </View>
                   <Text style={{ color: '#9ca3af', fontSize: 13, lineHeight: 20, marginBottom: 10 }}>
-                    Find embassy contact details for your country worldwide
+                    Search embassies and consulates for all nationalities in {selected.name}.
                   </Text>
                   <TouchableOpacity
                     style={{ backgroundColor: 'rgba(99,102,241,0.2)', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
-                    onPress={() => Linking.openURL('https://www.embassypages.com')}
+                    onPress={() => Linking.openURL(embassySearchUrl)}
                     activeOpacity={0.7}
                   >
-                    <Text style={{ color: '#a5b4fc', fontWeight: '700', fontSize: 13 }}>Find Embassy →</Text>
+                    <Text style={{ color: '#a5b4fc', fontWeight: '700', fontSize: 13 }}>Find Embassy on EmbassyPages.com →</Text>
                   </TouchableOpacity>
                 </View>
               )
