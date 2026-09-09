@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import * as InAppPurchases from 'expo-in-app-purchases'
+import Constants from 'expo-constants'
 import { PRODUCT_IDS, initIAP, getProducts, purchaseProduct, restorePurchases } from '../lib/iap'
+
+const isExpoGo = Constants.appOwnership === 'expo'
+const iapAvailable = !isExpoGo && Platform.OS === 'ios'
 
 const PLAN_META = [
   {
@@ -71,9 +75,11 @@ export default function SubscriptionScreen() {
     let mounted = true
     const setup = async () => {
       try {
-        await initIAP()
-        const results = await getProducts()
-        if (mounted) setProducts(results)
+        if (iapAvailable) {
+          await initIAP()
+          const results = await getProducts()
+          if (mounted) setProducts(results)
+        }
       } catch (e) {
         // Products unavailable in simulator — fall back to static prices
       } finally {
@@ -90,6 +96,10 @@ export default function SubscriptionScreen() {
   }
 
   const handlePurchase = async (productId: string) => {
+    if (!iapAvailable) {
+      Alert.alert('Not available', 'In-app purchases require a native build.')
+      return
+    }
     setPurchasing(productId)
     try {
       await purchaseProduct(productId)
@@ -104,6 +114,10 @@ export default function SubscriptionScreen() {
   }
 
   const handleRestore = async () => {
+    if (!iapAvailable) {
+      Alert.alert('Not available', 'In-app purchases require a native build.')
+      return
+    }
     setRestoring(true)
     try {
       await restorePurchases()
