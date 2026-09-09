@@ -1,5 +1,3 @@
-import * as InAppPurchases from 'expo-in-app-purchases'
-
 export const PRODUCT_IDS = {
   explorer_plus: 'com.tripmatess.app.explorer_plus_monthly',
   voyager: 'com.tripmatess.app.voyager_monthly',
@@ -7,18 +5,22 @@ export const PRODUCT_IDS = {
 }
 
 export async function initIAP() {
-  await InAppPurchases.connectAsync()
+  const IAP = require('expo-in-app-purchases')
+  await IAP.connectAsync()
 }
 
 export async function getProducts() {
-  const { results } = await InAppPurchases.getProductsAsync(Object.values(PRODUCT_IDS))
+  const IAP = require('expo-in-app-purchases')
+  const { results } = await IAP.getProductsAsync(Object.values(PRODUCT_IDS))
   return results ?? []
 }
 
 export async function purchaseProduct(productId: string) {
-  await InAppPurchases.purchaseItemAsync(productId)
+  const IAP = require('expo-in-app-purchases')
+  await IAP.purchaseItemAsync(productId)
 }
 
 export async function restorePurchases() {
-  await InAppPurchases.getPurchaseHistoryAsync()
+  const IAP = require('expo-in-app-purchases')
+  await IAP.getPurchaseHistoryAsync()
 }

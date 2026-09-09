@@ -6,7 +6,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
-import * as InAppPurchases from 'expo-in-app-purchases'
 import Constants from 'expo-constants'
 import { PRODUCT_IDS, initIAP, getProducts, purchaseProduct, restorePurchases } from '../lib/iap'
 
@@ -66,7 +65,7 @@ const PLAN_META = [
 
 export default function SubscriptionScreen() {
   const router = useRouter()
-  const [products, setProducts] = useState<InAppPurchases.IAPItemDetails[]>([])
+  const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
-import * as InAppPurchases from 'expo-in-app-purchases'
 import Constants from 'expo-constants'
 import { supabase } from '../lib/supabase'
 import { registerForPushNotifications } from '../lib/notifications'
@@ -12,11 +11,12 @@ import { SubscriptionProvider } from '../context/SubscriptionContext'
 
 const isExpoGo = Constants.appOwnership === 'expo'
 
-// Only initialize IAP in native builds (not Expo Go)
+// Only load IAP in native builds — dynamic require prevents Expo Go crash
 if (!isExpoGo && Platform.OS === 'ios') {
-  InAppPurchases.setPurchaseListener(({ responseCode, results }) => {
+  const InAppPurchases = require('expo-in-app-purchases')
+  InAppPurchases.setPurchaseListener(({ responseCode, results }: any) => {
     if (responseCode === InAppPurchases.IAPResponseCode.OK) {
-      results?.forEach(async (purchase) => {
+      results?.forEach(async (purchase: any) => {
         if (!purchase.acknowledged) {
           const tier = purchase.productId.includes('explorer_plus') ? 'explorer_plus'
             : purchase.productId.includes('voyager') ? 'voyager'
