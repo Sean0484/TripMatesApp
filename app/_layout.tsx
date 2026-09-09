@@ -3,10 +3,29 @@ import { useEffect, useState } from 'react'
 import { View, ActivityIndicator, StyleSheet } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
+import * as InAppPurchases from 'expo-in-app-purchases'
 import { supabase } from '../lib/supabase'
 import { registerForPushNotifications } from '../lib/notifications'
 import { LanguageProvider } from '../context/LanguageContext'
 import { SubscriptionProvider } from '../context/SubscriptionContext'
+
+// Handle completed IAP transactions globally
+InAppPurchases.setPurchaseListener(({ responseCode, results }) => {
+  if (responseCode === InAppPurchases.IAPResponseCode.OK) {
+    results?.forEach(async (purchase) => {
+      if (!purchase.acknowledged) {
+        const tier = purchase.productId.includes('explorer_plus') ? 'explorer_plus'
+          : purchase.productId.includes('voyager') ? 'voyager'
+          : 'premium'
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          await supabase.from('users').update({ subscription_tier: tier }).eq('id', user.id)
+        }
+        await InAppPurchases.finishTransactionAsync(purchase, true)
+      }
+    })
+  }
+})
 
 export default function RootLayout() {
   const [initialized, setInitialized] = useState(false)

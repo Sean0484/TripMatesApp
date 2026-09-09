@@ -1,18 +1,23 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking } from 'react-native'
+import { useEffect, useState } from 'react'
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  ActivityIndicator, Alert,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
+import * as InAppPurchases from 'expo-in-app-purchases'
+import { PRODUCT_IDS, initIAP, getProducts, purchaseProduct, restorePurchases } from '../lib/iap'
 
-const PLANS = [
+const PLAN_META = [
   {
     key: 'explorer_plus',
+    productId: PRODUCT_IDS.explorer_plus,
     name: 'Explorer Plus',
-    price: '€4.99',
-    period: '/month',
+    fallbackPrice: '€4.99',
     icon: '🗺️',
     color: '#1A6FFF',
     gradColors: ['#1A3FFF', '#0A4CC9'] as [string, string],
-    stripeUrl: 'https://buy.stripe.com/3cIeVd5yD9Wvg64cgu5AQ00',
     features: [
       'See who liked your trips',
       'See who visited your profile',
@@ -23,13 +28,12 @@ const PLANS = [
   },
   {
     key: 'voyager',
+    productId: PRODUCT_IDS.voyager,
     name: 'Voyager',
-    price: '€9.99',
-    period: '/month',
+    fallbackPrice: '€9.99',
     icon: '✈️',
     color: '#00B89C',
     gradColors: ['#00B89C', '#009478'] as [string, string],
-    stripeUrl: 'https://buy.stripe.com/fZubJ14uz2u3bPO1BQ5AQ01',
     features: [
       'Everything in Explorer Plus',
       'Create exclusive Duo trips',
@@ -40,13 +44,12 @@ const PLANS = [
   },
   {
     key: 'premium',
+    productId: PRODUCT_IDS.premium,
     name: 'Premium',
-    price: '€19.99',
-    period: '/month',
+    fallbackPrice: '€19.99',
     icon: '👑',
     color: '#f59e0b',
     gradColors: ['#f59e0b', '#d97706'] as [string, string],
-    stripeUrl: 'https://buy.stripe.com/28E28rd15b0z2feeoC5AQ02',
     features: [
       'Everything in Voyager',
       'Featured profile placement',
@@ -59,6 +62,58 @@ const PLANS = [
 
 export default function SubscriptionScreen() {
   const router = useRouter()
+  const [products, setProducts] = useState<InAppPurchases.IAPItemDetails[]>([])
+  const [loading, setLoading] = useState(true)
+  const [purchasing, setPurchasing] = useState<string | null>(null)
+  const [restoring, setRestoring] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    const setup = async () => {
+      try {
+        await initIAP()
+        const results = await getProducts()
+        if (mounted) setProducts(results)
+      } catch (e) {
+        // Products unavailable in simulator — fall back to static prices
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    setup()
+    return () => { mounted = false }
+  }, [])
+
+  const getPrice = (productId: string, fallback: string) => {
+    const product = products.find(p => p.productId === productId)
+    return product?.price ?? fallback
+  }
+
+  const handlePurchase = async (productId: string) => {
+    setPurchasing(productId)
+    try {
+      await purchaseProduct(productId)
+      // Result handled by the global setPurchaseListener in _layout.tsx
+    } catch (e: any) {
+      if (e?.code !== 'E_USER_CANCELLED') {
+        Alert.alert('Purchase failed', e?.message ?? 'Could not complete purchase.')
+      }
+    } finally {
+      setPurchasing(null)
+    }
+  }
+
+  const handleRestore = async () => {
+    setRestoring(true)
+    try {
+      await restorePurchases()
+      Alert.alert('Restored', 'Your purchases have been restored.')
+    } catch (e: any) {
+      Alert.alert('Restore failed', e?.message ?? 'Could not restore purchases.')
+    } finally {
+      setRestoring(false)
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -74,47 +129,69 @@ export default function SubscriptionScreen() {
         <View style={styles.hero}>
           <Text style={styles.heroEmoji}>✨</Text>
           <Text style={styles.heroTitle}>Travel Further Together</Text>
-          <Text style={styles.heroSubtitle}>Unlock premium features and find your perfect travel companion faster.</Text>
+          <Text style={styles.heroSubtitle}>
+            Unlock premium features and find your perfect travel companion faster.
+          </Text>
         </View>
 
-        {PLANS.map(plan => (
-          <View key={plan.key} style={styles.planCard}>
-            <View style={styles.planHeader}>
-              <Text style={styles.planIcon}>{plan.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.planName}>{plan.name}</Text>
-                <View style={styles.priceRow}>
-                  <Text style={[styles.planPrice, { color: plan.color }]}>{plan.price}</Text>
-                  <Text style={styles.planPeriod}>{plan.period}</Text>
+        {loading ? (
+          <ActivityIndicator color="#1A6FFF" size="large" style={{ marginTop: 40 }} />
+        ) : (
+          PLAN_META.map(plan => (
+            <View key={plan.key} style={styles.planCard}>
+              <View style={styles.planHeader}>
+                <Text style={styles.planIcon}>{plan.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.planName}>{plan.name}</Text>
+                  <View style={styles.priceRow}>
+                    <Text style={[styles.planPrice, { color: plan.color }]}>
+                      {getPrice(plan.productId, plan.fallbackPrice)}
+                    </Text>
+                    <Text style={styles.planPeriod}>/month</Text>
+                  </View>
                 </View>
               </View>
-            </View>
 
-            {plan.features.map(f => (
-              <View key={f} style={styles.featureRow}>
-                <Text style={[styles.featureCheck, { color: plan.color }]}>✓</Text>
-                <Text style={styles.featureText}>{f}</Text>
-              </View>
-            ))}
+              {plan.features.map(f => (
+                <View key={f} style={styles.featureRow}>
+                  <Text style={[styles.featureCheck, { color: plan.color }]}>✓</Text>
+                  <Text style={styles.featureText}>{f}</Text>
+                </View>
+              ))}
 
-            <TouchableOpacity
-              style={styles.planBtn}
-              activeOpacity={0.85}
-              onPress={() => Linking.openURL(plan.stripeUrl)}
-            >
-              <LinearGradient
-                colors={plan.gradColors}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={styles.planBtnGrad}
+              <TouchableOpacity
+                style={styles.planBtn}
+                activeOpacity={0.85}
+                disabled={purchasing === plan.productId}
+                onPress={() => handlePurchase(plan.productId)}
               >
-                <Text style={styles.planBtnText}>Get {plan.name} →</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        ))}
+                <LinearGradient
+                  colors={plan.gradColors}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={styles.planBtnGrad}
+                >
+                  {purchasing === plan.productId
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={styles.planBtnText}>Get {plan.name} →</Text>}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+
+        <TouchableOpacity
+          style={styles.restoreBtn}
+          onPress={handleRestore}
+          disabled={restoring}
+          activeOpacity={0.7}
+        >
+          {restoring
+            ? <ActivityIndicator color="#6b7280" size="small" />
+            : <Text style={styles.restoreBtnText}>Restore Purchases</Text>}
+        </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
-          Plans billed monthly. Cancel anytime. Prices shown in EUR.
+          Subscriptions auto-renew monthly. Cancel anytime in App Store settings.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -156,5 +233,7 @@ const styles = StyleSheet.create({
   planBtn: { borderRadius: 12, overflow: 'hidden', marginTop: 14 },
   planBtnGrad: { paddingVertical: 14, alignItems: 'center' },
   planBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  disclaimer: { color: '#4b5563', fontSize: 12, textAlign: 'center', marginTop: 8 },
+  restoreBtn: { alignItems: 'center', paddingVertical: 14 },
+  restoreBtnText: { color: '#6b7280', fontSize: 14, fontWeight: '600' },
+  disclaimer: { color: '#4b5563', fontSize: 12, textAlign: 'center', marginTop: 4 },
 })
