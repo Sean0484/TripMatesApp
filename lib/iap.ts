@@ -1,6 +1,6 @@
 import Purchases, { PurchasesPackage } from 'react-native-purchases'
 
-const REVENUECAT_API_KEY = 'appl_test_cGjkwPajtgvrhujPSFATnAFRHbJ'
+const REVENUECAT_API_KEY = 'test_cGjkwPajtgvrhujPSFATnAFRHbJ'
 
 export async function initIAP() {
   Purchases.configure({ apiKey: REVENUECAT_API_KEY })
