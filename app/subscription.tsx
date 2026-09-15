@@ -7,15 +7,19 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import Constants from 'expo-constants'
-import { PRODUCT_IDS, initIAP, getProducts, purchaseProduct, restorePurchases } from '../lib/iap'
+import { PurchasesPackage } from 'react-native-purchases'
+import { initIAP, getProducts, purchaseProduct, restorePurchases } from '../lib/iap'
+import { supabase } from '../lib/supabase'
 
 const isExpoGo = Constants.appOwnership === 'expo'
 const iapAvailable = !isExpoGo && Platform.OS === 'ios'
 
+// packageIdentifier must match the identifier set in RevenueCat dashboard
 const PLAN_META = [
   {
     key: 'explorer_plus',
-    productId: PRODUCT_IDS.explorer_plus,
+    packageIdentifier: '$rc_monthly',
+    rcIdentifier: 'explorer_plus',
     name: 'Explorer Plus',
     fallbackPrice: '€4.99',
     icon: '🗺️',
@@ -31,7 +35,8 @@ const PLAN_META = [
   },
   {
     key: 'voyager',
-    productId: PRODUCT_IDS.voyager,
+    packageIdentifier: 'voyager_monthly',
+    rcIdentifier: 'voyager',
     name: 'Voyager',
     fallbackPrice: '€9.99',
     icon: '✈️',
@@ -47,7 +52,8 @@ const PLAN_META = [
   },
   {
     key: 'premium',
-    productId: PRODUCT_IDS.premium,
+    packageIdentifier: 'premium_monthly',
+    rcIdentifier: 'premium',
     name: 'Premium',
     fallbackPrice: '€19.99',
     icon: '👑',
@@ -65,7 +71,7 @@ const PLAN_META = [
 
 export default function SubscriptionScreen() {
   const router = useRouter()
-  const [products, setProducts] = useState<any[]>([])
+  const [packages, setPackages] = useState<PurchasesPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [restoring, setRestoring] = useState(false)
@@ -76,8 +82,8 @@ export default function SubscriptionScreen() {
       try {
         if (iapAvailable) {
           await initIAP()
-          const results = await getProducts()
-          if (mounted) setProducts(results)
+          const pkgs = await getProducts()
+          if (mounted) setPackages(pkgs)
         }
       } catch (e) {
         // Products unavailable in simulator — fall back to static prices
@@ -89,22 +95,37 @@ export default function SubscriptionScreen() {
     return () => { mounted = false }
   }, [])
 
-  const getPrice = (productId: string, fallback: string) => {
-    const product = products.find(p => p.productId === productId)
-    return product?.price ?? fallback
+  const getPackage = (identifier: string): PurchasesPackage | undefined =>
+    packages.find(p => p.identifier === identifier)
+
+  const getPrice = (identifier: string, fallback: string): string => {
+    const pkg = getPackage(identifier)
+    return pkg?.product?.priceString ?? fallback
   }
 
-  const handlePurchase = async (productId: string) => {
+  const handlePurchase = async (plan: typeof PLAN_META[0]) => {
     if (!iapAvailable) {
       Alert.alert('Not available', 'In-app purchases require a native build.')
       return
     }
-    setPurchasing(productId)
+    const pkg = getPackage(plan.packageIdentifier)
+    if (!pkg) {
+      Alert.alert('Not available', 'This product could not be loaded from the App Store.')
+      return
+    }
+    setPurchasing(plan.key)
     try {
-      await purchaseProduct(productId)
-      // Result handled by the global setPurchaseListener in _layout.tsx
+      const customerInfo = await purchaseProduct(pkg)
+      // Update subscription tier in Supabase
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('users').update({ subscription_tier: plan.rcIdentifier }).eq('id', user.id)
+      }
+      Alert.alert('Success!', `You are now on the ${plan.name} plan.`, [
+        { text: 'OK', onPress: () => router.back() },
+      ])
     } catch (e: any) {
-      if (e?.code !== 'E_USER_CANCELLED') {
+      if (e?.userCancelled !== true) {
         Alert.alert('Purchase failed', e?.message ?? 'Could not complete purchase.')
       }
     } finally {
@@ -158,7 +179,7 @@ export default function SubscriptionScreen() {
                   <Text style={styles.planName}>{plan.name}</Text>
                   <View style={styles.priceRow}>
                     <Text style={[styles.planPrice, { color: plan.color }]}>
-                      {getPrice(plan.productId, plan.fallbackPrice)}
+                      {getPrice(plan.packageIdentifier, plan.fallbackPrice)}
                     </Text>
                     <Text style={styles.planPeriod}>/month</Text>
                   </View>
@@ -175,15 +196,15 @@ export default function SubscriptionScreen() {
               <TouchableOpacity
                 style={styles.planBtn}
                 activeOpacity={0.85}
-                disabled={purchasing === plan.productId}
-                onPress={() => handlePurchase(plan.productId)}
+                disabled={purchasing === plan.key}
+                onPress={() => handlePurchase(plan)}
               >
                 <LinearGradient
                   colors={plan.gradColors}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={styles.planBtnGrad}
                 >
-                  {purchasing === plan.productId
+                  {purchasing === plan.key
                     ? <ActivityIndicator color="#fff" />
                     : <Text style={styles.planBtnText}>Get {plan.name} →</Text>}
                 </LinearGradient>

@@ -11,26 +11,7 @@ import { SubscriptionProvider } from '../context/SubscriptionContext'
 
 const isExpoGo = Constants.appOwnership === 'expo'
 
-// Only load IAP in native builds — dynamic require prevents Expo Go crash
-if (!isExpoGo && Platform.OS === 'ios') {
-  const InAppPurchases = require('expo-in-app-purchases')
-  InAppPurchases.setPurchaseListener(({ responseCode, results }: any) => {
-    if (responseCode === InAppPurchases.IAPResponseCode.OK) {
-      results?.forEach(async (purchase: any) => {
-        if (!purchase.acknowledged) {
-          const tier = purchase.productId.includes('explorer_plus') ? 'explorer_plus'
-            : purchase.productId.includes('voyager') ? 'voyager'
-            : 'premium'
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            await supabase.from('users').update({ subscription_tier: tier }).eq('id', user.id)
-          }
-          await InAppPurchases.finishTransactionAsync(purchase, true)
-        }
-      })
-    }
-  })
-}
+// RevenueCat is initialized per-screen in subscription.tsx; no global listener needed
 
 export default function RootLayout() {
   const [initialized, setInitialized] = useState(false)

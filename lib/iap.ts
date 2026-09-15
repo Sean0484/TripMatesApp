@@ -1,26 +1,21 @@
-export const PRODUCT_IDS = {
-  explorer_plus: 'com.tripmatess.app.explorer_plus_monthly',
-  voyager: 'com.tripmatess.app.voyager_monthly',
-  premium: 'com.tripmatess.app.premium_monthly',
-}
+import Purchases, { PurchasesPackage } from 'react-native-purchases'
+
+const REVENUECAT_API_KEY = 'your_revenuecat_key'
 
 export async function initIAP() {
-  const IAP = require('expo-in-app-purchases')
-  await IAP.connectAsync()
+  Purchases.configure({ apiKey: REVENUECAT_API_KEY })
 }
 
-export async function getProducts() {
-  const IAP = require('expo-in-app-purchases')
-  const { results } = await IAP.getProductsAsync(Object.values(PRODUCT_IDS))
-  return results ?? []
+export async function getProducts(): Promise<PurchasesPackage[]> {
+  const offerings = await Purchases.getOfferings()
+  return offerings.current?.availablePackages ?? []
 }
 
-export async function purchaseProduct(productId: string) {
-  const IAP = require('expo-in-app-purchases')
-  await IAP.purchaseItemAsync(productId)
+export async function purchaseProduct(pkg: PurchasesPackage) {
+  const { customerInfo } = await Purchases.purchasePackage(pkg)
+  return customerInfo
 }
 
 export async function restorePurchases() {
-  const IAP = require('expo-in-app-purchases')
-  await IAP.getPurchaseHistoryAsync()
+  return await Purchases.restorePurchases()
 }

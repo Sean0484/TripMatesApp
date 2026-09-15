@@ -59,8 +59,7 @@
       "@react-native-google-signin/google-signin",
       "expo-location",
       "expo-notifications",
-      "expo-local-authentication",
-      "expo-in-app-purchases"
+      "expo-local-authentication"
     ],
     "extra": {
       "router": {},
