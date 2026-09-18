@@ -18,7 +18,7 @@ const iapAvailable = !isExpoGo && Platform.OS === 'ios'
 const PLAN_META = [
   {
     key: 'explorer_plus',
-    packageIdentifier: '$rc_monthly',
+    packageIdentifier: 'explorer_plus',
     rcIdentifier: 'explorer_plus',
     name: 'Explorer Plus',
     fallbackPrice: '€4.99',
@@ -35,7 +35,7 @@ const PLAN_META = [
   },
   {
     key: 'voyager',
-    packageIdentifier: 'voyager_monthly',
+    packageIdentifier: 'voyager',
     rcIdentifier: 'voyager',
     name: 'Voyager',
     fallbackPrice: '€9.99',
@@ -52,7 +52,7 @@ const PLAN_META = [
   },
   {
     key: 'premium',
-    packageIdentifier: 'premium_monthly',
+    packageIdentifier: 'premium',
     rcIdentifier: 'premium',
     name: 'Premium',
     fallbackPrice: '€19.99',
