@@ -115,17 +115,27 @@ export default function SubscriptionScreen() {
     }
     setPurchasing(plan.key)
     try {
-      const customerInfo = await purchaseProduct(pkg)
-      // Update subscription tier in Supabase
+      const Purchases = require('react-native-purchases').default
+      await Purchases.purchasePackage(pkg)
+
+      // Determine tier from package identifier
+      let tier = 'free'
+      if (pkg.identifier === 'explorer_plus') tier = 'explorer_plus'
+      else if (pkg.identifier === 'voyager') tier = 'voyager'
+      else if (pkg.identifier === 'premium') tier = 'premium'
+
+      // Update Supabase
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        await supabase.from('users').update({ subscription_tier: plan.rcIdentifier }).eq('id', user.id)
+        await supabase.from('users').update({ subscription_tier: tier }).eq('id', user.id)
+        console.log('Subscription updated to:', tier)
       }
-      Alert.alert('Success!', `You are now on the ${plan.name} plan.`, [
+
+      Alert.alert('Success! 🎉', `You are now on the ${plan.name} plan!`, [
         { text: 'OK', onPress: () => router.back() },
       ])
     } catch (e: any) {
-      if (e?.userCancelled !== true) {
+      if (!e?.userCancelled) {
         Alert.alert('Purchase failed', e?.message ?? 'Could not complete purchase.')
       }
     } finally {
@@ -140,8 +150,23 @@ export default function SubscriptionScreen() {
     }
     setRestoring(true)
     try {
-      await restorePurchases()
-      Alert.alert('Restored', 'Your purchases have been restored.')
+      const Purchases = require('react-native-purchases').default
+      const customerInfo = await Purchases.restorePurchases()
+
+      // Determine tier from active entitlements
+      const active = customerInfo.entitlements.active
+      let tier = 'free'
+      if (active['premium']) tier = 'premium'
+      else if (active['voyager']) tier = 'voyager'
+      else if (active['explorer_plus']) tier = 'explorer_plus'
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('users').update({ subscription_tier: tier }).eq('id', user.id)
+        console.log('Restored subscription tier:', tier)
+      }
+
+      Alert.alert('Restored!', tier !== 'free' ? `Your ${tier} plan has been restored.` : 'No active subscriptions found.')
     } catch (e: any) {
       Alert.alert('Restore failed', e?.message ?? 'Could not restore purchases.')
     } finally {
